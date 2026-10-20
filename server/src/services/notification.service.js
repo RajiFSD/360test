@@ -10,7 +10,8 @@ const { getSmsProvider } = require('./sms');
 const { iso } = require('../utils/http');
 
 /** Parents may only ever receive these event types (privacy rule, enforced here). */
-const PARENT_ALLOWED = new Set(['REQUEST_APPROVED', 'DEPARTED', 'REACHED_DESTINATION', 'RETURNED_CAMPUS', 'OVERDUE']);
+// The REGISTRATION_* types are about the parent's own account, not about a student.
+const PARENT_ALLOWED = new Set(['REQUEST_APPROVED', 'DEPARTED', 'REACHED_DESTINATION', 'RETURNED_CAMPUS', 'OVERDUE', 'REGISTRATION_APPROVED', 'REGISTRATION_REJECTED']);
 
 const isExpoToken = (t) => typeof t === 'string' && /^Expo(nent)?PushToken\[.+\]$/.test(t);
 
@@ -53,12 +54,13 @@ async function sendExpoPush(messages) {
  * @param {number} [opts.tripId]
  * @param {object} [opts.data]
  * @param {boolean} [opts.sms] also send SMS when sms_enabled
+ * @param {boolean} [opts.includeInactive] also reach inactive accounts (only for telling a user their registration was rejected)
  * @returns {Promise<number>} number of users notified
  */
-async function notify({ userIds, type, title, body, tripId = null, data = {}, sms = false }) {
+async function notify({ userIds, type, title, body, tripId = null, data = {}, sms = false, includeInactive = false }) {
   const ids = [...new Set((userIds || []).filter(Boolean))];
   if (!ids.length) return 0;
-  const users = await db.query('SELECT id, role, phone, push_token FROM users WHERE id IN (?) AND is_active = 1', [ids]);
+  const users = await db.query(`SELECT id, role, phone, push_token FROM users WHERE id IN (?)${includeInactive ? '' : ' AND is_active = 1'}`, [ids]);
   const recipients = users.filter((u) => u.role !== 'parent' || PARENT_ALLOWED.has(type));
   if (!recipients.length) return 0;
 

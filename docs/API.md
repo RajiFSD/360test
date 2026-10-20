@@ -30,7 +30,7 @@ Base URL: `http://<host>:4000/api` · Interactive docs: `GET /api/docs` (Swagger
 Suggested status badge colours: PENDING amber, APPROVED blue, ACTIVE indigo, COMPLETED green, OVERDUE red, REJECTED gray-red, CANCELLED/EXPIRED gray.
 
 ### Error codes (`error.code`)
-`VALIDATION_ERROR` 400 · `UNAUTHORIZED` 401 · `TOKEN_EXPIRED` 401 · `INVALID_CREDENTIALS` 401 · `FORBIDDEN` 403 · `NOT_FOUND` 404 · `CONFLICT` 409 · `RATE_LIMITED` 429 · `TRACKING_NOT_ALLOWED` 403 (details.reason: `TRIP_NOT_ACTIVE` | `NO_CONSENT` | `OUTSIDE_TRIP_WINDOW`) · `OUTSIDE_CAMPUS` 422 (details.distance_m) · QR errors 422: `QR_INVALID`, `QR_EXPIRED`, `QR_REVOKED`, `QR_ALREADY_USED`, `PASS_NOT_APPROVED`, `OUTSIDE_TIME_WINDOW`, `TRIP_CLOSED` (details may include `student` and `trip` so the guard sees who it was) · `PASSWORD_CHANGE_REQUIRED` 403 (account still on a temporary password: only `GET /auth/me`, `POST /auth/change-password`, `PUT /auth/push-token` are allowed until it is changed; admins are exempt) · `INTERNAL_ERROR` 500.
+`VALIDATION_ERROR` 400 · `UNAUTHORIZED` 401 · `TOKEN_EXPIRED` 401 · `INVALID_CREDENTIALS` 401 · `FORBIDDEN` 403 · `NOT_FOUND` 404 · `CONFLICT` 409 · `RATE_LIMITED` 429 · `TRACKING_NOT_ALLOWED` 403 (details.reason: `TRIP_NOT_ACTIVE` | `NO_CONSENT` | `OUTSIDE_TRIP_WINDOW`) · `OUTSIDE_CAMPUS` 422 (details.distance_m) · QR errors 422: `QR_INVALID`, `QR_EXPIRED`, `QR_REVOKED`, `QR_ALREADY_USED`, `PASS_NOT_APPROVED`, `OUTSIDE_TIME_WINDOW`, `TRIP_CLOSED` (details may include `student` and `trip` so the guard sees who it was) · `ACCOUNT_PENDING` 403 (login, correct password, registration awaiting admin approval) · `ACCOUNT_REJECTED` 403 (login, registration rejected; message includes the reason) · `REGISTRATION_CONFLICT` 409 (email, phone or roll number already in use — deliberately does not say which) · `PASSWORD_CHANGE_REQUIRED` 403 (account still on a temporary password: only `GET /auth/me`, `POST /auth/change-password`, `PUT /auth/push-token` are allowed until it is changed; admins are exempt) · `INTERNAL_ERROR` 500.
 
 ---
 
@@ -90,6 +90,16 @@ Suggested status badge colours: PENDING amber, APPROVED blue, ACTIVE indigo, COM
 | PUT | `/auth/me` | `{ name?, phone?, photo_url? }` | `User` |
 | POST | `/auth/change-password` | `{ currentPassword, newPassword }` (min 8, must differ) | `{ ok, accessToken, refreshToken, user }` — all sessions are revoked and this device gets a fresh pair; clears `must_change_password` |
 | PUT | `/auth/push-token` | `{ pushToken }` (Expo token or `null`) | `{ ok: true }` |
+
+## Self-registration (public)
+Only **students and parents** can register; any other `role` is rejected (400) and no account is created. Staff accounts are created by an admin.
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| GET | `/auth/register/options` | – | `{ departments: [{ id, name, code }], hostels: [{ id, name }], relations: ["Father","Mother","Guardian"] }` |
+| POST | `/auth/register` | student: `{ role: "student", name, roll_no, email, phone, department_id, hostel_id, password, confirm_password }` · parent: `{ role: "parent", name, email, phone, children: [{ roll_no, relation }] (1–5), password, confirm_password }` | 201 `{ ok, status: "PENDING", message }` |
+
+Rules: phone = Indian 10-digit mobile, optional +91 (stored as `+91XXXXXXXXXX`); roll number 3–20 letters/digits with at least one digit; password ≥ 8 chars with a letter and a number. Rate limit 5 / hour / IP. Accounts are created **inactive** with `registration_status = PENDING` (no login, no notifications). Parent children: a link with `verified = 0` is created for each roll number that matches a student; unknown roll numbers are accepted silently (the response is identical). No auto-login.
 
 ## Meta / settings (any authenticated user)
 | GET | `/meta/departments` | `[{ id, name, code }]` |
@@ -202,6 +212,15 @@ Tracking is accepted **only** when trip status is ACTIVE/OVERDUE (after gate exi
 | GET | `/ai/insights` | staff/admin | – | `{ peak_hours: [{ hour, count }], peak_days: [{ day, count }], frequent_late_returners: [{ student_id, name, roll_no, trips, late_trips, late_rate, avg_delay_min }], avg_approval_minutes, late_rate_by_category: [{ category, late_rate, count }], model: { version, provider, trained_at, metrics: { accuracy, auc, logloss, samples, mae_minutes } } }` |
 | GET | `/ai/model` | staff/admin | – | model metadata |
 | POST | `/ai/retrain` | admin | – | `{ version, metrics }` |
+
+## Registrations (admin)
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| GET | `/admin/registrations?status=PENDING|APPROVED|REJECTED` | – | `[{ id, role, name, email, phone, roll_no, department, hostel, created_at, registration_status, registration_note, reviewed_at, reviewer, children: [{ roll_no, relation, student: { id, name } | null }] }]` |
+| GET | `/admin/registrations/count` | – | `{ pending }` (nav badge) |
+| POST | `/admin/registrations/:id/approve` | – | `{ ok }` — sets `is_active = 1`, `APPROVED`; notifies the user. Parent links stay unverified |
+| POST | `/admin/registrations/:id/reject` | `{ reason? }` | `{ ok }` — `REJECTED`, stays inactive; reason shown at login |
+| POST | `/admin/registrations/bulk-approve` | `{ ids }` | `{ approved, failed: [{ id, reason }] }` |
 
 ## Bulk CSV import (admin)
 | Method | Path | Body | Returns |

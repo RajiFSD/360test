@@ -57,6 +57,7 @@ function createApp() {
   app.get('/api/docs.json', (req, res) => res.json(openapi));
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapi, { customSiteTitle: 'SmartOutpass API' }));
 
+  app.use('/api/auth/register', require('./routes/register.routes'));
   app.use('/api/auth', require('./routes/auth.routes'));
   app.use('/api/users', require('./routes/users.routes'));
   app.use('/api/outpasses', require('./routes/outpass.routes'));
@@ -66,6 +67,7 @@ function createApp() {
   app.use('/api/dashboard', require('./routes/dashboard.routes'));
   app.use('/api/reports', require('./routes/reports.routes'));
   app.use('/api/admin/import', require('./routes/import.routes'));
+  app.use('/api/admin/registrations', require('./routes/registrations.routes'));
   app.use('/api/admin', require('./routes/admin.routes'));
   app.use('/api/ai', require('./routes/ai.routes'));
   app.use('/api', require('./routes/misc.routes'));

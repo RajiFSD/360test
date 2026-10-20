@@ -23,10 +23,10 @@ const EMPTY = { role: 'student', name: '', email: '', phone: '', password: '', r
 
 const SAMPLE_CSV = [
   'role,name,email,phone,roll_no,department,hostel,password',
-  'student,Riya Menon,riya.menon@smartoutpass.edu,+919800000101,S2024101,Computer Science,Girls Hostel A,Password@123',
-  'student,Kabir Rao,kabir.rao@smartoutpass.edu,+919800000102,S2024102,Mechanical Engineering,Boys Hostel A,Password@123',
-  'parent,Suresh Menon,suresh.menon@example.com,+919800000201,,,,Password@123',
-  'faculty,Dr. Anita Shah,anita.shah@smartoutpass.edu,+919800000301,,Computer Science,,Password@123',
+  'student,Riya Menon,riya.menon@smartoutpass.edu,+919800000101,S2024101,Computer Science,Girls Hostel A,TempPass@2026',
+  'student,Kabir Rao,kabir.rao@smartoutpass.edu,+919800000102,S2024102,Mechanical Engineering,Boys Hostel A,TempPass@2026',
+  'parent,Suresh Menon,suresh.menon@example.com,+919800000201,,,,TempPass@2026',
+  'faculty,Dr. Anita Shah,anita.shah@smartoutpass.edu,+919800000301,,Computer Science,,TempPass@2026',
 ].join('\n');
 
 function UserFormModal({ open, onClose, user }) {

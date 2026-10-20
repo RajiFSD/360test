@@ -4,6 +4,7 @@ import { HomeRedirect, RequireAuth, RequireRole } from './auth/guards';
 import AppLayout from './layouts/AppLayout';
 import { FullPageSpinner } from './components/Spinner';
 import LoginPage from './pages/common/LoginPage';
+import RegisterPage from './pages/common/RegisterPage';
 
 const NotFoundPage = lazy(() => import('./pages/common/NotFoundPage'));
 const NotificationsPage = lazy(() => import('./pages/common/NotificationsPage'));
@@ -41,6 +42,7 @@ const GeofencesPage = lazy(() => import('./pages/admin/GeofencesPage'));
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
 const AuditLogsPage = lazy(() => import('./pages/admin/AuditLogsPage'));
 const ImportPage = lazy(() => import('./pages/admin/ImportPage'));
+const RegistrationsPage = lazy(() => import('./pages/admin/RegistrationsPage'));
 
 const STAFF = ['warden', 'faculty', 'admin'];
 
@@ -49,6 +51,7 @@ export default function App() {
     <Suspense fallback={<FullPageSpinner />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="/" element={<HomeRedirect />} />
         <Route element={<RequireAuth />}>
           <Route path="/change-password" element={<ChangePasswordPage />} />
@@ -91,6 +94,7 @@ export default function App() {
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<UsersPage />} />
               <Route path="/admin/import" element={<ImportPage />} />
+              <Route path="/admin/registrations" element={<RegistrationsPage />} />
               <Route path="/admin/links" element={<LinksPage />} />
               <Route path="/admin/org" element={<OrgPage />} />
               <Route path="/admin/geofences" element={<GeofencesPage />} />

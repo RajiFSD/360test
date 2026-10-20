@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, LogIn, MapPinned, QrCode, ShieldCheck, Sparkles } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { getApiError } from '../../api/client';
 import { Button, Field, Input } from '../../components/ui';
-import { DEMO_ACCOUNTS, DEMO_PASSWORD, ROLE_HOME } from '../../lib/constants';
+import { ROLE_HOME } from '../../lib/constants';
 
 export default function LoginPage() {
   const { user, login, sessionExpired, clearSessionExpired } = useAuth();
@@ -35,6 +35,7 @@ export default function LoginPage() {
       const e = getApiError(err);
       if (e.code === 'INVALID_CREDENTIALS') setError('Incorrect email/roll number or password.');
       else if (e.code === 'RATE_LIMITED') setError('Too many login attempts. Please wait a few minutes and try again.');
+      // ACCOUNT_PENDING / ACCOUNT_REJECTED carry the user-facing message from the server.
       else setError(e.message);
     } finally {
       setLoading(false);
@@ -103,7 +104,7 @@ export default function LoginPage() {
                 autoComplete="username"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="you@college.edu or S2024001"
+                placeholder="you@college.edu or your roll number"
                 invalid={!!error}
               />
             </Field>
@@ -138,30 +139,12 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-8">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Demo login</p>
-            <p className="mt-1 text-xs text-slate-500">
-              One click signs in with password <code className="rounded bg-slate-100 px-1">{DEMO_PASSWORD}</code>
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {DEMO_ACCOUNTS.map((a) => (
-                <button
-                  key={a.identifier}
-                  type="button"
-                  disabled={loading}
-                  onClick={() => {
-                    setIdentifier(a.identifier);
-                    setPassword(DEMO_PASSWORD);
-                    doLogin(a.identifier, DEMO_PASSWORD);
-                  }}
-                  title={a.identifier}
-                  className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-50"
-                >
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <p className="mt-8 text-center text-sm text-slate-600">
+            New student or parent?{' '}
+            <Link to="/register" className="font-semibold text-indigo-600 hover:text-indigo-700 focus:outline-none focus-visible:underline">
+              Create an account
+            </Link>
+          </p>
         </div>
       </section>
     </div>

@@ -15,8 +15,7 @@ npm run dev            # http://localhost:5173
 The dev server proxies `/api`, `/uploads` and `/socket.io` (WebSocket) to the backend
 (default `http://localhost:4000`), so run the server in `../server` alongside it.
 
-Demo accounts (password `Password@123`) are available as one-click chips on the login page:
-admin, warden, faculty, security, student1 (roll `S2024001`), parent1 `@smartoutpass.edu`.
+Students and parents can create an account at `/register`; an admin approves it under **Admin → Pending registrations**.
 
 ## Scripts
 

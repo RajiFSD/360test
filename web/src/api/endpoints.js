@@ -16,6 +16,17 @@ export const authApi = {
   },
 };
 
+// ---------- Self-registration (public) + admin review ----------
+export const registrationApi = {
+  options: () => getData('/auth/register/options'),
+  register: (body) => send('post', '/auth/register', body),
+  list: (status = 'PENDING') => getData('/admin/registrations', { status }),
+  count: () => getData('/admin/registrations/count'),
+  approve: (id) => send('post', `/admin/registrations/${id}/approve`),
+  reject: (id, reason) => send('post', `/admin/registrations/${id}/reject`, { reason: reason || null }),
+  bulkApprove: (ids) => send('post', '/admin/registrations/bulk-approve', { ids }),
+};
+
 // ---------- Bulk CSV import (admin) ----------
 const csvForm = (file, extra = {}) => {
   const fd = new FormData();

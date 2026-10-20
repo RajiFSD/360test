@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Spinner } from '../components/Spinner';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
@@ -9,6 +10,7 @@ import { NAV } from './navConfig';
 import { NotificationBell } from './NotificationBell';
 import { UserMenu } from './UserMenu';
 import { ROLE_LABELS } from '../lib/constants';
+import { registrationApi } from '../api/endpoints';
 
 function Brand() {
   return (
@@ -23,7 +25,7 @@ function Brand() {
   );
 }
 
-function NavItems({ items, onNavigate }) {
+function NavItems({ items, onNavigate, badges = {} }) {
   return (
     <ul className="space-y-1">
       {items.map((item, idx) =>
@@ -45,7 +47,12 @@ function NavItems({ items, onNavigate }) {
               }
             >
               <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.badge && badges[item.badge] > 0 && (
+                <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-semibold text-white" aria-label={`${badges[item.badge]} pending`}>
+                  {badges[item.badge]}
+                </span>
+              )}
             </NavLink>
           </li>
         ),
@@ -61,6 +68,13 @@ export default function AppLayout() {
   const location = useLocation();
   const items = NAV[user?.role] || [];
   const primary = items.filter((i) => i.primary).slice(0, 4);
+  const pendingRegistrations = useQuery({
+    queryKey: ['registrations', 'count'],
+    queryFn: registrationApi.count,
+    enabled: user?.role === 'admin',
+    refetchInterval: 60_000,
+  });
+  const badges = { pendingRegistrations: pendingRegistrations.data?.pending || 0 };
 
   useEffect(() => setDrawer(false), [location.pathname]);
 
@@ -79,7 +93,7 @@ export default function AppLayout() {
           <Brand />
         </div>
         <nav aria-label="Main" className="flex-1 overflow-y-auto px-3 pb-6">
-          <NavItems items={items} />
+          <NavItems items={items} badges={badges} />
         </nav>
         <div className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
           Signed in as <span className="font-medium text-slate-700">{ROLE_LABELS[user?.role]}</span>
@@ -103,7 +117,7 @@ export default function AppLayout() {
               </button>
             </div>
             <nav aria-label="Main" className="flex-1 overflow-y-auto px-3 pb-6">
-              <NavItems items={items} onNavigate={() => setDrawer(false)} />
+              <NavItems items={items} badges={badges} onNavigate={() => setDrawer(false)} />
             </nav>
           </div>
         </div>

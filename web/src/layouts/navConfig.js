@@ -18,6 +18,7 @@ import {
   TimerOff,
   Upload,
   UserCircle,
+  UserPlus,
   Users,
 } from 'lucide-react';
 
@@ -57,6 +58,7 @@ export const NAV = {
   admin: [
     { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true, primary: true },
     { to: '/admin/users', label: 'Users', icon: Users, primary: true },
+    { to: '/admin/registrations', label: 'Pending registrations', icon: UserPlus, badge: 'pendingRegistrations' },
     { to: '/admin/import', label: 'Bulk import', icon: Upload },
     { to: '/admin/links', label: 'Parent links', icon: Link2 },
     { to: '/admin/org', label: 'Departments & hostels', icon: Building2 },

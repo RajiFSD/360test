@@ -97,18 +97,15 @@ npx expo start                # scan the QR code with Expo Go, or press a for An
 - QR scanning uses `expo-camera`'s `CameraView` barcode scanner. `expo-barcode-scanner` is deprecated in recent Expo SDKs, so it is not used.
 - If you are on Windows, allow Node through the firewall on port 4000 so the phone can reach the API.
 
-## 5. Test credentials
+## 5. Accounts
 
-Every account's password is **`Password@123`**.
+| Who | How the account is created |
+|---|---|
+| Admin | `npm run seed:minimal` creates the single admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `server/.env` |
+| Wardens, faculty, security | Only by an admin: **Admin → Users** or **Bulk import** (staff CSV) |
+| Students, parents | Self-registration at **/register** (web) or **Create an account** (mobile), then approval under **Admin → Pending registrations**; or created by an admin / CSV import |
 
-| Role | Login | Notes |
-|---|---|---|
-| Admin | `admin@smartoutpass.edu` | Full admin console |
-| Warden | `warden@smartoutpass.edu` | Boys Hostel A. Also `warden2@…` (Hostel B) and `warden3@…` (Girls Hostel C) |
-| Faculty | `faculty@smartoutpass.edu` | Has the same approval rights as wardens |
-| Security | `security@smartoutpass.edu` | Also `security2@…` |
-| Student | `student1@smartoutpass.edu` or roll **`S2024001`** | Aarav Sharma, home in Erode. Students run `student1` … `student60` (`S2024001` … `S2024060`) |
-| Parent | `parent1@smartoutpass.edu` | Linked to S2024001 and S2024002. `parentN` is linked to `studentN`. Parents 44 and 45 are unverified, for the link-verification demo |
+Self-registered accounts stay inactive until approved; parent–child links are verified separately on **Admin → Parent links**. For local development, `npm run db:seed` creates sample accounts for every role and prints them when it finishes (see `server/scripts/seed.js`); never run it against a live database.
 
 The seed uses the campus geofence **Main Campus** (500 m circle at 11.0168, 76.9558, Coimbatore); students' home towns and local destinations are around Coimbatore. It also creates a live demo state:
 - 4 **pending** requests with different AI risk levels.
@@ -129,14 +126,14 @@ The seed uses the campus geofence **Main Campus** (500 m circle at 11.0168, 76.9
 
 ## 6. Demo walkthrough
 
-1. **Student requests.** In the web or mobile app, log in as `S2024001`, choose **New request**, pick *Home visit*, and tap the destination on the map. The AI risk preview appears before you submit.
-2. **Warden reviews.** In another browser profile, log in as `warden@…`. The request shows on the dashboard in real time with its risk badge and reasons. Approve it with remarks, or tick several requests and **Bulk approve**.
+1. **Student requests.** In the web or mobile app, sign in as a student, choose **New request**, pick *Home visit*, and tap the destination on the map. The AI risk preview appears before you submit.
+2. **Warden reviews.** In another browser profile, sign in as a warden. The request shows on the dashboard in real time with its risk badge and reasons. Approve it with remarks, or tick several requests and **Bulk approve**.
 3. **QR and consent.** The student's request page now shows the signed QR code and a consent card. Tick the consent box and tap **Share location**. The server stores a timestamped consent record.
-4. **Gate exit.** Log in as `security@…` (the mobile scanner, or the web Scan page with a camera or a pasted token). Scan the code; the guard sees the student's photo, reason and expected return, and taps **Confirm EXIT**. The parent is notified that the student *Departed*.
+4. **Gate exit.** Sign in as security (the mobile scanner, or the web Scan page with a camera or a pasted token). Scan the code; the guard sees the student's photo, reason and expected return, and taps **Confirm EXIT**. The parent is notified that the student *Departed*.
 5. **Live tracking.** The student app shows a pulsing **Sharing location** indicator. The warden's **Live map** and the parent's trip view move in real time. Each ping runs the server's geofence engine; when the student reaches home, parents and the warden are notified *Reached home*.
 6. **Return.** Entering the campus geofence, or tapping **I've reached campus** (checked against the geofence), notifies parents and the warden *Reached college*. Security scans the **same QR** again, which records ENTRY and completes the trip, and tracking stops on its own. A third scan is rejected as *already used*.
-7. **Overdue.** Open **Overdue** as the warden: `S2024009` is listed with how late they are, the parent's phone number, and one-tap *Notify student / Notify parent* buttons. The cron job escalates at +15 min (student), +30 min (warden) and +60 min (parents and security).
-8. **Admin.** Log in as `admin@…` for users (with CSV import), parent links, hostels and departments, the geofence editor, settings, audit logs, reports (CSV/PDF), and **AI insights** (including **Retrain model**).
+7. **Overdue.** Open **Overdue** as the warden: an overdue student is listed with how late they are, the parent's phone number, and one-tap *Notify student / Notify parent* buttons. The cron job escalates at +15 min (student), +30 min (warden) and +60 min (parents and security).
+8. **Admin.** Sign in as the admin for users, pending registrations (with CSV import), parent links, hostels and departments, the geofence editor, settings, audit logs, reports (CSV/PDF), and **AI insights** (including **Retrain model**).
 
 ### No need to leave your desk: the simulator
 With the API running (`npm run dev`), open a second terminal:
@@ -146,7 +143,7 @@ npm run simulate                          # S2024001 → Erode: approve → cons
 npm run simulate -- --scenario=overdue    # also jumps past the return time and runs the overdue job
 npm run simulate -- --student=S2024002 --dest=10.7867,76.6548 --steps=20 --delay=1000   # to Palakkad
 ```
-It connects Socket.IO clients as the parent, the warden and the student, and prints every notification each of them receives. It also checks the server-side rules: no tracking before EXIT, no tracking after completion, and rejection of a third QR scan. Keep the web app open as `warden@…` (Live map) or `parent1@…` to watch it happen. If a run is interrupted while the student is still out, finish the trip with a security ENTRY scan or run `npm run db:reset`.
+It connects Socket.IO clients as the parent, the warden and the student, and prints every notification each of them receives. It also checks the server-side rules: no tracking before EXIT, no tracking after completion, and rejection of a third QR scan. Keep the web app open as a warden (Live map) or the student's parent to watch it happen. If a run is interrupted while the student is still out, finish the trip with a security ENTRY scan or run `npm run db:reset`.
 
 ## 7. How it works
 

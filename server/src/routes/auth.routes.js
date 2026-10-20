@@ -8,7 +8,7 @@ const config = require('../config');
 const repo = require('../services/repo');
 const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
-const { asyncHandler, unauthorized, badRequest } = require('../utils/errors');
+const { AppError, asyncHandler, unauthorized, badRequest } = require('../utils/errors');
 const { signAccessToken, newRefreshToken, hashToken } = require('../utils/tokens');
 const { audit } = require('../utils/audit');
 const { ok } = require('../utils/http');
@@ -44,11 +44,26 @@ router.post(
   validate(z.object({ identifier: z.string().trim().min(1).max(190), password: z.string().min(1).max(200) })),
   asyncHandler(async (req, res) => {
     const { identifier, password } = req.body;
-    const row = await db.one('SELECT id, role, name, password_hash, is_active FROM users WHERE email = ? OR roll_no = ? LIMIT 1', [
-      identifier.toLowerCase(),
-      identifier.toUpperCase(),
-    ]);
+    const row = await db.one(
+      'SELECT id, role, name, password_hash, is_active, registration_status, registration_note FROM users WHERE email = ? OR roll_no = ? LIMIT 1',
+      [identifier.toLowerCase(), identifier.toUpperCase()],
+    );
     const valid = await bcrypt.compare(password, row?.password_hash || DUMMY_HASH);
+    // Registration state is only revealed to someone who knows the password.
+    if (row && valid && row.registration_status === 'PENDING') {
+      req.user = { id: row.id };
+      await audit(req, 'AUTH_LOGIN_PENDING', 'user', row.id);
+      throw new AppError(403, 'ACCOUNT_PENDING', 'Your account is awaiting approval. You can sign in once the college admin approves it.');
+    }
+    if (row && valid && row.registration_status === 'REJECTED') {
+      req.user = { id: row.id };
+      await audit(req, 'AUTH_LOGIN_REJECTED', 'user', row.id);
+      throw new AppError(
+        403,
+        'ACCOUNT_REJECTED',
+        `Your registration was not approved${row.registration_note ? `: ${row.registration_note}` : '.'} Contact the college office if you think this is a mistake.`,
+      );
+    }
     if (!row || !valid || !row.is_active) {
       await audit(req, 'AUTH_LOGIN_FAILED', 'user', row?.id, { identifier });
       throw unauthorized('Invalid credentials', 'INVALID_CREDENTIALS');

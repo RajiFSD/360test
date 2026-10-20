@@ -63,17 +63,6 @@ export function humanize(value) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export const DEMO_ACCOUNTS = [
-  { label: 'Admin', identifier: 'admin@smartoutpass.edu' },
-  { label: 'Warden', identifier: 'warden@smartoutpass.edu' },
-  { label: 'Faculty', identifier: 'faculty@smartoutpass.edu' },
-  { label: 'Security', identifier: 'security@smartoutpass.edu' },
-  { label: 'Student', identifier: 'student1@smartoutpass.edu' },
-  { label: 'Student (roll no)', identifier: 'S2024001' },
-  { label: 'Parent', identifier: 'parent1@smartoutpass.edu' },
-];
-export const DEMO_PASSWORD = 'Password@123';
-
 /** Trip statuses where the student QR / consent are relevant. */
 export const QR_TRIP_STATUSES = ['APPROVED', 'ACTIVE', 'OVERDUE'];
 export const LIVE_TRIP_STATUSES = ['ACTIVE', 'OVERDUE'];
