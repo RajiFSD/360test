@@ -18,3 +18,4 @@ Thumbs.db
 *.mobileprovision
 android/
 ios/
+server/db/backups/

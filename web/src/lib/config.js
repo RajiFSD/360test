@@ -23,4 +23,4 @@ export function assetUrl(url) {
   return `${API_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
-export const CAMPUS_CENTER = [12.9716, 77.5946];
+export const CAMPUS_CENTER = [11.0168, 76.9558];

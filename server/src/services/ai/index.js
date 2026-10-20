@@ -82,14 +82,18 @@ async function insights() {
     `SELECT DAYOFWEEK(DATE_ADD(created_at, INTERVAL 330 MINUTE)) AS dow, COUNT(*) AS count FROM outpass_requests GROUP BY dow ORDER BY dow`,
   );
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // Derived table: MariaDB doesn't allow aggregate aliases inside ORDER BY expressions.
   const late = await db.query(
-    `SELECT s.id AS student_id, s.name, s.roll_no, COUNT(*) AS trips,
-            SUM(COALESCE(t.entry_at, t.completed_at) > DATE_ADD(o.expected_return_at, INTERVAL 15 MINUTE)) AS late_trips,
-            AVG(GREATEST(0, TIMESTAMPDIFF(MINUTE, o.expected_return_at, COALESCE(t.entry_at, t.completed_at)))) AS avg_delay_min
-     FROM trips t JOIN outpass_requests o ON o.id = t.request_id JOIN users s ON s.id = o.student_id
-     WHERE t.status = 'COMPLETED'
-     GROUP BY s.id, s.name, s.roll_no HAVING trips >= 3 AND late_trips > 0
-     ORDER BY late_trips / trips DESC, late_trips DESC LIMIT 15`,
+    `SELECT * FROM (
+       SELECT s.id AS student_id, s.name, s.roll_no, COUNT(*) AS trips,
+              SUM(COALESCE(t.entry_at, t.completed_at) > DATE_ADD(o.expected_return_at, INTERVAL 15 MINUTE)) AS late_trips,
+              AVG(GREATEST(0, TIMESTAMPDIFF(MINUTE, o.expected_return_at, COALESCE(t.entry_at, t.completed_at)))) AS avg_delay_min
+       FROM trips t JOIN outpass_requests o ON o.id = t.request_id JOIN users s ON s.id = o.student_id
+       WHERE t.status = 'COMPLETED'
+       GROUP BY s.id, s.name, s.roll_no
+     ) x
+     WHERE x.trips >= 3 AND x.late_trips > 0
+     ORDER BY x.late_trips / x.trips DESC, x.late_trips DESC LIMIT 15`,
   );
   const approval = await db.one(
     `SELECT AVG(TIMESTAMPDIFF(SECOND, created_at, reviewed_at)) / 60 AS avg_min FROM outpass_requests WHERE reviewed_at IS NOT NULL`,

@@ -5,7 +5,7 @@
  *   exit scan -> moving away -> reached home -> (optionally overdue) -> back on campus -> entry scan
  *
  * Usage:
- *   npm run simulate                         # default: student1 (S2024001) to Mysuru, parent1 listening
+ *   npm run simulate                         # default: student1 (S2024001) to Erode, parent1 listening
  *   npm run simulate -- --scenario=overdue   # also time-travels past the return time and runs the overdue job
  *   npm run simulate -- --student=S2024002 --dest=12.9141,74.8560 --steps=15 --delay=500
  *
@@ -29,7 +29,7 @@ const ADMIN = arg('admin', 'admin@smartoutpass.edu');
 const STEPS = Number(arg('steps', 12));
 const DELAY = Number(arg('delay', 700));
 const SCENARIO = arg('scenario', 'full');
-const [DEST_LAT, DEST_LNG] = arg('dest', '12.2958,76.6394').split(',').map(Number);
+const [DEST_LAT, DEST_LNG] = arg('dest', '11.3410,77.7172').split(',').map(Number);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const c = { dim: '\x1b[2m', green: '\x1b[32m', yellow: '\x1b[33m', cyan: '\x1b[36m', magenta: '\x1b[35m', red: '\x1b[31m', bold: '\x1b[1m', reset: '\x1b[0m' };
@@ -113,8 +113,12 @@ async function main() {
 
   const campus = await api('GET', '/geofences/campus', student.token);
   const inside = { lat: Number(campus.center_lat), lng: Number(campus.center_lng) };
-  const gate = campus.polygon ? { lat: Math.min(...campus.polygon.map((p) => p[0])) + 0.0004, lng: inside.lng } : inside;
-  const outside = { lat: gate.lat - 0.004, lng: gate.lng };
+  // Gate just inside the southern edge of the fence; 'outside' ~400 m beyond it.
+  const M_PER_DEG = 111_320;
+  const gate = campus.shape === 'POLYGON' && campus.polygon
+    ? { lat: Math.min(...campus.polygon.map((p) => p[0])) + 0.0004, lng: inside.lng }
+    : { lat: inside.lat - (Number(campus.radius_m) - 50) / M_PER_DEG, lng: inside.lng };
+  const outside = { lat: gate.lat - 450 / M_PER_DEG, lng: gate.lng };
   const dest = { lat: DEST_LAT, lng: DEST_LNG };
 
   step('Clearing any open outpass for this student');

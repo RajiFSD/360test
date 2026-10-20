@@ -107,10 +107,10 @@ Every account's password is **`Password@123`**.
 | Warden | `warden@smartoutpass.edu` | Boys Hostel A. Also `warden2@…` (Hostel B) and `warden3@…` (Girls Hostel C) |
 | Faculty | `faculty@smartoutpass.edu` | Has the same approval rights as wardens |
 | Security | `security@smartoutpass.edu` | Also `security2@…` |
-| Student | `student1@smartoutpass.edu` or roll **`S2024001`** | Aarav Sharma, home in Mysuru. Students run `student1` … `student60` (`S2024001` … `S2024060`) |
+| Student | `student1@smartoutpass.edu` or roll **`S2024001`** | Aarav Sharma, home in Erode. Students run `student1` … `student60` (`S2024001` … `S2024060`) |
 | Parent | `parent1@smartoutpass.edu` | Linked to S2024001 and S2024002. `parentN` is linked to `studentN`. Parents 44 and 45 are unverified, for the link-verification demo |
 
-The seed also creates a live demo state:
+The seed uses the campus geofence **Main Campus** (500 m circle at 11.0168, 76.9558, Coimbatore); students' home towns and local destinations are around Coimbatore. It also creates a live demo state:
 - 4 **pending** requests with different AI risk levels.
 - An **approved** pass waiting at the gate for `S2024010`.
 - 2 **active, tracked** trips (`S2024007`, `S2024008`) on the live map.
@@ -131,9 +131,9 @@ The seed also creates a live demo state:
 With the API running (`npm run dev`), open a second terminal:
 ```bash
 cd server
-npm run simulate                          # S2024001: approve → consent → EXIT → travel → home → return → ENTRY
+npm run simulate                          # S2024001 → Erode: approve → consent → EXIT → travel → home → return → ENTRY
 npm run simulate -- --scenario=overdue    # also jumps past the return time and runs the overdue job
-npm run simulate -- --student=S2024002 --dest=12.9141,74.8560 --steps=20 --delay=1000
+npm run simulate -- --student=S2024002 --dest=10.7867,76.6548 --steps=20 --delay=1000   # to Palakkad
 ```
 It connects Socket.IO clients as the parent, the warden and the student, and prints every notification each of them receives. It also checks the server-side rules: no tracking before EXIT, no tracking after completion, and rejection of a third QR scan. Keep the web app open as `warden@…` (Live map) or `parent1@…` to watch it happen. If a run is interrupted while the student is still out, finish the trip with a security ENTRY scan or run `npm run db:reset`.
 

@@ -33,6 +33,14 @@ async function main() {
   attachSocket(server);
   const stopJobs = config.enableJobs ? startJobs() : () => {};
 
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[server] port ${config.port} is already in use — another SmartOutpass API (or other app) is running.`);
+      console.error(`         Stop it, or set a different PORT in server/.env (and VITE_PROXY_TARGET / EXPO_PUBLIC_API_URL to match).`);
+      process.exit(1);
+    }
+    throw err;
+  });
   server.listen(config.port, () => {
     console.log(`SmartOutpass API listening on http://localhost:${config.port}  (docs: /api/docs)`);
   });

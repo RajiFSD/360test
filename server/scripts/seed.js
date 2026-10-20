@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Seeds demo data (wipes existing rows first):
- *  - departments, hostels, a campus geofence (polygon) in Bengaluru
+ *  - departments, hostels, the campus geofence ("Main Campus", 500 m circle in Coimbatore)
  *  - demo users for every role (password: Password@123)
  *  - 2,000+ historical completed trips (requests, trips, gate logs, events) + matching ai_trip_samples
  *  - trains the delay model, then creates a live demo state: pending requests (with AI risk),
@@ -43,28 +43,23 @@ const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 
 // ---------- reference data ----------
-const CAMPUS = { lat: 12.9716, lng: 77.5946 };
-const CAMPUS_POLYGON = [
-  [12.9746, 77.5911],
-  [12.9748, 77.5979],
-  [12.9689, 77.5984],
-  [12.9684, 77.5915],
-];
-const GATE = { lat: 12.9686, lng: 77.5946 }; // south gate, just inside the fence
+// Campus = the institution's existing "Main Campus" geofence (Coimbatore, 500 m circle).
+const CAMPUS = { name: 'Main Campus', lat: 11.0168, lng: 76.9558, radius_m: 500 };
+const GATE = { lat: CAMPUS.lat - 0.0040, lng: CAMPUS.lng }; // south gate, ~445 m from centre: just inside the fence
 
 const HOME_CITIES = [
-  ['Mysuru', 12.2958, 76.6394], ['Mandya', 12.5223, 76.8970], ['Tumakuru', 13.3392, 77.1140], ['Hosur', 12.7409, 77.8253],
-  ['Kolar', 13.1367, 78.1292], ['Hassan', 13.0072, 76.0962], ['Chikkaballapur', 13.4355, 77.7315], ['Ramanagara', 12.7209, 77.2799],
-  ['Davangere', 14.4644, 75.9218], ['Hubballi', 15.3647, 75.1240], ['Mangaluru', 12.9141, 74.8560], ['Tirupati', 13.6288, 79.4192],
-  ['Vellore', 12.9165, 79.1325], ['Salem', 11.6643, 78.1460], ['Chennai', 13.0827, 80.2707], ['Coimbatore', 11.0168, 76.9558],
-  ['Whitefield, Bengaluru', 12.9698, 77.7500], ['Jayanagar, Bengaluru', 12.9250, 77.5938], ['Yelahanka, Bengaluru', 13.1007, 77.5963],
-  ['Shivamogga', 13.9299, 75.5681], ['Belagavi', 15.8497, 74.4977], ['Kochi', 9.9312, 76.2673], ['Hyderabad', 17.3850, 78.4867],
+  ['Erode', 11.3410, 77.7172], ['Tiruppur', 11.1085, 77.3411], ['Pollachi', 10.6609, 77.0048], ['Salem', 11.6643, 78.1460],
+  ['Palakkad', 10.7867, 76.6548], ['Ooty', 11.4102, 76.6950], ['Madurai', 9.9252, 78.1198], ['Karur', 10.9601, 78.0766],
+  ['Dindigul', 10.3673, 77.9803], ['Mettupalayam', 11.2991, 76.9348], ['Thrissur', 10.5276, 76.2144], ['Kochi', 9.9312, 76.2673],
+  ['Tiruchirappalli', 10.7905, 78.7047], ['Namakkal', 11.2189, 78.1674], ['Udumalaipettai', 10.5855, 77.2473], ['Kozhikode', 11.2588, 75.7804],
+  ['Chennai', 13.0827, 80.2707], ['Bengaluru', 12.9716, 77.5946], ['Mysuru', 12.2958, 76.6394], ['Thanjavur', 10.7870, 79.1378],
+  ['Gobichettipalayam', 11.4553, 77.4422], ['Sathyamangalam', 11.5048, 77.2384], ['Kanyakumari', 8.0883, 77.5385],
 ];
 const LOCAL_SPOTS = [
-  ['MG Road Metro, Bengaluru', 12.9755, 77.6067], ['Forum Mall, Koramangala', 12.9346, 77.6113], ['Manipal Hospital, Old Airport Rd', 12.9586, 77.6487],
-  ['Lalbagh Botanical Garden', 12.9507, 77.5848], ['Commercial Street', 12.9822, 77.6083], ['Orion Mall, Rajajinagar', 13.0108, 77.5550],
-  ['Indiranagar 100ft Road', 12.9719, 77.6412], ['Victoria Hospital', 12.9601, 77.5732], ['IISc, Malleswaram', 13.0219, 77.5671],
-  ['Majestic Bus Stand', 12.9767, 77.5713], ['KR Market', 12.9634, 77.5776], ['Cubbon Park', 12.9763, 77.5929 + 0.012],
+  ['Brookefields Mall', 11.0090, 76.9600], ['Gandhipuram Central Bus Stand', 11.0183, 76.9673], ['PSG Hospitals, Peelamedu', 11.0247, 77.0026],
+  ['RS Puram', 11.0089, 76.9469], ['Town Hall', 10.9946, 76.9619], ['Prozone Mall, Saravanampatti', 11.0526, 76.9940],
+  ['Race Course', 11.0010, 76.9750], ['KMCH Hospital, Avinashi Rd', 11.0442, 77.0410], ['Coimbatore Junction', 10.9965, 76.9672],
+  ['Ukkadam', 10.9890, 76.9610], ['Marudhamalai Temple', 11.0466, 76.8530], ['Fun Mall, Avinashi Rd', 11.0240, 77.0100],
 ];
 const FIRST = ['Aarav', 'Vivaan', 'Aditya', 'Vihaan', 'Arjun', 'Sai', 'Reyansh', 'Krishna', 'Ishaan', 'Rohan', 'Ananya', 'Diya', 'Aadhya', 'Saanvi',
   'Kavya', 'Meera', 'Priya', 'Sneha', 'Nikhil', 'Rahul', 'Karthik', 'Varun', 'Pooja', 'Divya', 'Harsha', 'Lakshmi', 'Manoj', 'Neha', 'Tejas', 'Shreya'];
@@ -176,8 +171,8 @@ async function main() {
 
   // ---------- campus geofence ----------
   await db.query(
-    "INSERT INTO geofences (name, type, shape, center_lat, center_lng, radius_m, polygon) VALUES ('Main Campus', 'CAMPUS', 'POLYGON', ?, ?, 450, ?)",
-    [CAMPUS.lat, CAMPUS.lng, JSON.stringify(CAMPUS_POLYGON)],
+    "INSERT INTO geofences (name, type, shape, center_lat, center_lng, radius_m) VALUES (?, 'CAMPUS', 'CIRCLE', ?, ?, ?)",
+    [CAMPUS.name, CAMPUS.lat, CAMPUS.lng, CAMPUS.radius_m],
   );
 
   // ---------- historical trips ----------
@@ -404,7 +399,7 @@ async function main() {
     { role: 'warden', login: 'warden@smartoutpass.edu (Boys Hostel A)' },
     { role: 'faculty', login: 'faculty@smartoutpass.edu' },
     { role: 'security', login: 'security@smartoutpass.edu' },
-    { role: 'student', login: 'student1@smartoutpass.edu or S2024001 (home: Mysuru)' },
+    { role: 'student', login: 'student1@smartoutpass.edu or S2024001 (home: Erode)' },
     { role: 'parent', login: 'parent1@smartoutpass.edu (linked to S2024001 + S2024002)' },
   ]);
   console.log(`Live demo: 4 pending requests, approved pass for ${s10.roll_no}, 2 tracked trips, 1 overdue trip (${s9.roll_no}).`);
