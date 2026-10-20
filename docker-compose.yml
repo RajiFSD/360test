@@ -1,0 +1,27 @@
+# Optional: local MariaDB for SmartOutpass (the API, web and mobile apps run on your machine).
+#   docker compose up -d
+# then use DB_HOST=127.0.0.1 DB_USER=smartoutpass DB_PASSWORD=smartoutpass DB_NAME=smartoutpass in server/.env
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: smartoutpass-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpass
+      MARIADB_DATABASE: smartoutpass
+      MARIADB_USER: smartoutpass
+      MARIADB_PASSWORD: smartoutpass
+      TZ: UTC
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--default-time-zone=+00:00"]
+    ports:
+      - "3306:3306"
+    volumes:
+      - smartoutpass-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  smartoutpass-db:

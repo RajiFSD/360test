@@ -1,0 +1,40 @@
+{
+  "name": "smartoutpass-server",
+  "version": "1.0.0",
+  "description": "SmartOutpass API: digital outpasses, QR gate verification, consent-based live tracking and AI delay prediction",
+  "main": "src/index.js",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "db:migrate": "node scripts/migrate.js",
+    "db:schema": "node scripts/build-schema.js",
+    "db:seed": "node scripts/seed.js",
+    "db:reset": "node scripts/migrate.js --fresh && node scripts/seed.js",
+    "ai:retrain": "node scripts/retrain.js",
+    "simulate": "node scripts/simulate-trip.js",
+    "test": "node --test \"tests/*.test.js\""
+  },
+  "dependencies": {
+    "bcryptjs": "2.4.3",
+    "cors": "2.8.5",
+    "csv-parse": "5.5.6",
+    "dotenv": "16.4.5",
+    "express": "4.21.1",
+    "express-rate-limit": "7.4.1",
+    "helmet": "8.0.0",
+    "jsonwebtoken": "9.0.2",
+    "morgan": "1.10.0",
+    "multer": "1.4.5-lts.1",
+    "mysql2": "3.11.3",
+    "node-cron": "3.0.3",
+    "pdfkit": "0.15.0",
+    "socket.io": "4.8.1",
+    "socket.io-client": "4.8.1",
+    "swagger-ui-express": "5.0.1",
+    "zod": "3.23.8"
+  }
+}
