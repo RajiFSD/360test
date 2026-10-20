@@ -1,7 +1,7 @@
 {
-  "version": "logreg-20261020103528",
+  "version": "logreg-20261020115047",
   "provider": "node-logreg",
-  "trained_at": "2026-10-20T10:35:28.174Z",
+  "trained_at": "2026-10-20T11:50:47.060Z",
   "features": [
     "log_distance",
     "log_duration",

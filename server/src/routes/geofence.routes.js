@@ -35,6 +35,11 @@ router.get(
 );
 
 router.get(
+  '/campuses',
+  asyncHandler(async (req, res) => ok(res, await repo.getCampusFences())),
+);
+
+router.get(
   '/',
   requireRole('admin', 'warden', 'faculty'),
   asyncHandler(async (req, res) => {
@@ -48,10 +53,6 @@ router.get(
   }),
 );
 
-async function deactivateOtherCampus(id) {
-  await db.query("UPDATE geofences SET is_active = 0 WHERE type = 'CAMPUS' AND id <> ?", [id]);
-}
-
 router.post(
   '/',
   requireRole('admin'),
@@ -62,7 +63,6 @@ router.post(
       'INSERT INTO geofences (name, type, shape, center_lat, center_lng, radius_m, polygon, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [b.name, b.type, b.shape, b.center_lat, b.center_lng, b.radius_m ?? null, b.polygon ? JSON.stringify(b.polygon) : null, b.is_active === false ? 0 : 1],
     );
-    if (b.type === 'CAMPUS' && b.is_active !== false) await deactivateOtherCampus(r.insertId);
     await audit(req, 'GEOFENCE_CREATED', 'geofence', r.insertId, { name: b.name, type: b.type });
     ok(res, repo.serializeFence(await db.one('SELECT * FROM geofences WHERE id = ?', [r.insertId])), undefined, 201);
   }),
@@ -85,7 +85,6 @@ router.put(
         merged.polygon ? JSON.stringify(merged.polygon) : null, merged.is_active ? 1 : 0, id,
       ],
     );
-    if (merged.type === 'CAMPUS' && merged.is_active) await deactivateOtherCampus(id);
     await audit(req, 'GEOFENCE_UPDATED', 'geofence', id, req.body);
     ok(res, repo.serializeFence(await db.one('SELECT * FROM geofences WHERE id = ?', [id])));
   }),

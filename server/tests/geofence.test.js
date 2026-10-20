@@ -88,6 +88,25 @@ test('RETURNED_CAMPUS only after having left campus, with debounce', () => {
   assert.deepEqual(r.events.map((e) => e.type), ['RETURNED_CAMPUS']);
 });
 
+test('several campus fences (college + off-site hostel): outside all = left, inside any = returned', () => {
+  const college = { shape: 'CIRCLE', center_lat: 11.481, center_lng: 77.875, radius_m: 300 };
+  const hostel = { shape: 'CIRCLE', center_lat: 11.4571, center_lng: 77.7905, radius_m: 300 };
+  const multi = { campus: [college, hostel], destination: null, debounce: 2, maxAccuracy: 100 };
+  const p = (lat, lng, m) => ({ lat, lng, accuracy: 15, recorded_at: at(m) });
+  // Starting at the hostel is not "leaving"; moving between nothing and the college is.
+  let r = evaluatePing(empty, p(11.4571, 77.7905, 1), multi);
+  assert.equal(r.events.length, 0);
+  r = evaluatePing(r.state, p(11.40, 77.70, 2), multi);
+  assert.deepEqual(r.events.map((e) => e.type), ['LEFT_CAMPUS']);
+  // Coming back to the hostel (not the college) counts as returned.
+  r = evaluatePing(r.state, p(11.4572, 77.7906, 3), multi);
+  r = evaluatePing(r.state, p(11.4571, 77.7905, 4), multi);
+  assert.deepEqual(r.events.map((e) => e.type), ['RETURNED_CAMPUS']);
+  // A single fence object is still accepted.
+  const single = evaluatePing(empty, p(11.40, 77.70, 1), { ...multi, campus: college });
+  assert.deepEqual(single.events.map((e) => e.type), ['LEFT_CAMPUS']);
+});
+
 test('battery/motion-aware interval', () => {
   const s = { tracking_interval_moving_sec: 30, tracking_interval_idle_sec: 60, tracking_interval_low_battery_sec: 120 };
   assert.equal(nextIntervalSec({ speed: 10, battery: 0.8 }, s), 30);

@@ -128,11 +128,16 @@ router.post(
   asyncHandler(async (req, res) => {
     const row = await db.one('SELECT password_hash FROM users WHERE id = ?', [req.user.id]);
     if (!(await bcrypt.compare(req.body.currentPassword, row.password_hash))) throw badRequest('Current password is incorrect');
-    await db.query('UPDATE users SET password_hash = ? WHERE id = ?', [await bcrypt.hash(req.body.newPassword, config.bcryptRounds), req.user.id]);
-    // Sign out other sessions.
+    if (req.body.newPassword === req.body.currentPassword) throw badRequest('New password must be different from the current one');
+    await db.query('UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?', [
+      await bcrypt.hash(req.body.newPassword, config.bcryptRounds),
+      req.user.id,
+    ]);
+    // Sign out all sessions, then give this device a fresh pair so it stays signed in.
     await db.query('UPDATE refresh_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL', [new Date(), req.user.id]);
-    await audit(req, 'PASSWORD_CHANGED', 'user', req.user.id);
-    ok(res, { ok: true });
+    const tokens = await issueTokens(req.user, req);
+    await audit(req, 'PASSWORD_CHANGED', 'user', req.user.id, { forced: !!req.user.must_change_password });
+    ok(res, { ok: true, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, user: await repo.getUser(req.user.id) });
   }),
 );
 

@@ -239,12 +239,13 @@ router.post(
     const id = Number(req.params.id);
     const { raw } = await loadTripFor(req.user, id);
     if (!['ACTIVE', 'OVERDUE'].includes(raw.status)) throw conflict('Check-in is only possible during an active trip');
-    const campus = await repo.getCampusFence();
-    if (!campus) throw conflict('Campus geofence is not configured');
+    const campuses = await repo.getCampusFences();
+    if (!campuses.length) throw conflict('Campus geofence is not configured');
     const { lat, lng } = req.body;
     const tolerance = Math.min(Number(req.body.accuracy) || 0, await settings.get('geofence_max_accuracy_m'));
-    const distance = Math.round(distanceToFence(lat, lng, campus));
-    if (!isInsideFence(lat, lng, campus) && distance > tolerance) {
+    // Any campus fence counts (college or hostel); report the distance to the nearest one.
+    const distance = Math.round(Math.min(...campuses.map((f) => distanceToFence(lat, lng, f))));
+    if (!campuses.some((f) => isInsideFence(lat, lng, f)) && distance > tolerance) {
       throw unprocessable('OUTSIDE_CAMPUS', `You are about ${distance} m outside the campus boundary.`, { distance_m: distance });
     }
     await tripSvc.markReturned(id, new Date(), 'CHECKIN');

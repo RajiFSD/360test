@@ -30,7 +30,7 @@ Base URL: `http://<host>:4000/api` · Interactive docs: `GET /api/docs` (Swagger
 Suggested status badge colours: PENDING amber, APPROVED blue, ACTIVE indigo, COMPLETED green, OVERDUE red, REJECTED gray-red, CANCELLED/EXPIRED gray.
 
 ### Error codes (`error.code`)
-`VALIDATION_ERROR` 400 · `UNAUTHORIZED` 401 · `TOKEN_EXPIRED` 401 · `INVALID_CREDENTIALS` 401 · `FORBIDDEN` 403 · `NOT_FOUND` 404 · `CONFLICT` 409 · `RATE_LIMITED` 429 · `TRACKING_NOT_ALLOWED` 403 (details.reason: `TRIP_NOT_ACTIVE` | `NO_CONSENT` | `OUTSIDE_TRIP_WINDOW`) · `OUTSIDE_CAMPUS` 422 (details.distance_m) · QR errors 422: `QR_INVALID`, `QR_EXPIRED`, `QR_REVOKED`, `QR_ALREADY_USED`, `PASS_NOT_APPROVED`, `OUTSIDE_TIME_WINDOW`, `TRIP_CLOSED` (details may include `student` and `trip` so the guard sees who it was) · `INTERNAL_ERROR` 500.
+`VALIDATION_ERROR` 400 · `UNAUTHORIZED` 401 · `TOKEN_EXPIRED` 401 · `INVALID_CREDENTIALS` 401 · `FORBIDDEN` 403 · `NOT_FOUND` 404 · `CONFLICT` 409 · `RATE_LIMITED` 429 · `TRACKING_NOT_ALLOWED` 403 (details.reason: `TRIP_NOT_ACTIVE` | `NO_CONSENT` | `OUTSIDE_TRIP_WINDOW`) · `OUTSIDE_CAMPUS` 422 (details.distance_m) · QR errors 422: `QR_INVALID`, `QR_EXPIRED`, `QR_REVOKED`, `QR_ALREADY_USED`, `PASS_NOT_APPROVED`, `OUTSIDE_TIME_WINDOW`, `TRIP_CLOSED` (details may include `student` and `trip` so the guard sees who it was) · `PASSWORD_CHANGE_REQUIRED` 403 (account still on a temporary password: only `GET /auth/me`, `POST /auth/change-password`, `PUT /auth/push-token` are allowed until it is changed; admins are exempt) · `INTERNAL_ERROR` 500.
 
 ---
 
@@ -88,7 +88,7 @@ Suggested status badge colours: PENDING amber, APPROVED blue, ACTIVE indigo, COM
 | POST | `/auth/logout` | `{ refreshToken }` | `{ ok: true }` |
 | GET | `/auth/me` | – | `User` |
 | PUT | `/auth/me` | `{ name?, phone?, photo_url? }` | `User` |
-| POST | `/auth/change-password` | `{ currentPassword, newPassword }` (min 8) | `{ ok: true }` |
+| POST | `/auth/change-password` | `{ currentPassword, newPassword }` (min 8, must differ) | `{ ok, accessToken, refreshToken, user }` — all sessions are revoked and this device gets a fresh pair; clears `must_change_password` |
 | PUT | `/auth/push-token` | `{ pushToken }` (Expo token or `null`) | `{ ok: true }` |
 
 ## Meta / settings (any authenticated user)
@@ -96,7 +96,8 @@ Suggested status badge colours: PENDING amber, APPROVED blue, ACTIVE indigo, COM
 |---|---|---|
 | GET | `/meta/hostels` | `[{ id, name, warden_id }]` |
 | GET | `/settings/public` | `{ tracking_interval_moving_sec, tracking_interval_idle_sec, tracking_interval_low_battery_sec, destination_radius_m, geofence_max_accuracy_m, overdue_grace_min }` |
-| GET | `/geofences/campus` | `Geofence` (the active campus fence) |
+| GET | `/geofences/campus` | `Geofence` — the primary campus fence (lowest id): map default, distance reference |
+| GET | `/geofences/campuses` | `Geofence[]` — every active campus fence (e.g. college + off-site hostel). Leaving = outside all of them; returned / check-in = inside any of them |
 
 ## Uploads
 `POST /uploads` multipart field `file` (jpg/png/pdf, ≤ 5 MB) → `{ url }` (served from `/uploads/...`, prefix with server origin).
@@ -201,6 +202,15 @@ Tracking is accepted **only** when trip status is ACTIVE/OVERDUE (after gate exi
 | GET | `/ai/insights` | staff/admin | – | `{ peak_hours: [{ hour, count }], peak_days: [{ day, count }], frequent_late_returners: [{ student_id, name, roll_no, trips, late_trips, late_rate, avg_delay_min }], avg_approval_minutes, late_rate_by_category: [{ category, late_rate, count }], model: { version, provider, trained_at, metrics: { accuracy, auc, logloss, samples, mae_minutes } } }` |
 | GET | `/ai/model` | staff/admin | – | model metadata |
 | POST | `/ai/retrain` | admin | – | `{ version, metrics }` |
+
+## Bulk CSV import (admin)
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| GET | `/admin/import/:type/template` | – | CSV template (`type` = `students` · `parents` · `staff` · `links`) |
+| POST | `/admin/import/:type/preview` | multipart `file` | `{ type, columns, summary: { total, ok, duplicate, error }, rows: [{ line, status: ok|duplicate|error, data, errors, warnings, message }] }` — writes nothing |
+| POST | `/admin/import/:type/commit` | multipart `file`, optional `temp_password` (min 8) | `{ created, skipped, failed, summary, rows, credentials: [{ name, role, login, email, temporary_password }] }` — re-validates and inserts only `ok` rows in one transaction |
+
+Columns — students: `name, roll_no, email, phone, department, hostel` · parents: `name, email, phone` · staff: `name, role (warden|faculty|security), email, phone, hostel (wardens only)` · links: `student_roll_no, parent_phone_or_email, relation, verified`. Department/hostel match existing names (department also by code); duplicates by email / roll_no (links: same parent+student) are skipped. Imported users get `must_change_password = 1`; without `temp_password` a random one is generated per user and returned once.
 
 ## Jobs (admin)
 `POST /admin/jobs/:name/run` — run a scheduled job immediately (`overdue`, `signal-lost`, `auto-complete`, `expiry`, `ping-retention`) → `{ job, result }`. Used by the simulator and for demos.

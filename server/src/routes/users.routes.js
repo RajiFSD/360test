@@ -137,8 +137,10 @@ router.post(
         continue;
       }
       await db.query(
-        `INSERT INTO users (role, name, email, phone, password_hash, roll_no, department_id, hostel_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [u.role, u.name, u.email, u.phone, await bcrypt.hash(u.password, config.bcryptRounds), u.roll_no, u.department_id, u.hostel_id],
+        `INSERT INTO users (role, name, email, phone, password_hash, roll_no, department_id, hostel_id, must_change_password)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [u.role, u.name, u.email, u.phone, await bcrypt.hash(u.password, config.bcryptRounds), u.roll_no, u.department_id, u.hostel_id,
+          u.role === 'admin' ? 0 : 1],
       );
       result.created++;
     }

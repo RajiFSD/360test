@@ -1,0 +1,11 @@
+{
+  "admin": { "name": "College Administrator" },
+  "campuses": [
+    { "name": "Main Campus", "lat": 11.481, "lng": 77.875, "radius_m": 300 },
+    { "name": "College Hostel", "lat": 11.4571325, "lng": 77.7905177, "radius_m": 300 }
+  ],
+  "hostels": ["College Hostel"],
+  "departments": [
+    { "name": "BACHELOR OF COMPUTER SCIENCE (ARTIFICIAL INTELLIGENCE & DATA SCIENCE)", "code": "10058" }
+  ]
+}

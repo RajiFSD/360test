@@ -16,7 +16,8 @@
     "db:reset": "node scripts/migrate.js --fresh && node scripts/seed.js",
     "ai:retrain": "node scripts/retrain.js",
     "simulate": "node scripts/simulate-trip.js",
-    "test": "node --test \"tests/*.test.js\""
+    "test": "node --test \"tests/*.test.js\"",
+    "seed:minimal": "node scripts/seed-minimal.js"
   },
   "dependencies": {
     "bcryptjs": "2.4.3",

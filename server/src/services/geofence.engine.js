@@ -3,7 +3,8 @@
  *
  * state: { left_campus_at, reached_destination_at, returned_at, dest_streak, campus_streak }
  * ping:  { lat, lng, accuracy, recorded_at }
- * ctx:   { campus, destination, debounce = 2, maxAccuracy = 100 }
+ * ctx:   { campus, destination, debounce = 2, maxAccuracy = 100 }  — campus may be one fence or an array
+ *        (e.g. college + off-site hostel): outside ALL of them = left, inside ANY of them = returned.
  *
  * Rules
  * - Pings with accuracy >= maxAccuracy are ignored entirely (no streak change).
@@ -25,10 +26,11 @@ function evaluatePing(state, ping, ctx) {
     return { state: next, events, ignored: true };
   }
 
-  const inCampus = ctx.campus ? isInsideFence(ping.lat, ping.lng, ctx.campus) : false;
+  const campuses = [].concat(ctx.campus || []);
+  const inCampus = campuses.some((f) => isInsideFence(ping.lat, ping.lng, f));
   const inDest = ctx.destination ? isInsideFence(ping.lat, ping.lng, ctx.destination) : false;
 
-  if (!next.left_campus_at && ctx.campus && !inCampus) {
+  if (!next.left_campus_at && campuses.length && !inCampus) {
     next.left_campus_at = at;
     events.push({ type: 'LEFT_CAMPUS', at });
   }
@@ -41,7 +43,7 @@ function evaluatePing(state, ping, ctx) {
     }
   }
 
-  if (next.left_campus_at && !next.returned_at && ctx.campus) {
+  if (next.left_campus_at && !next.returned_at && campuses.length) {
     next.campus_streak = inCampus ? next.campus_streak + 1 : 0;
     if (next.campus_streak >= debounce) {
       next.returned_at = at;

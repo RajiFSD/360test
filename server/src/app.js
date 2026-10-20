@@ -65,6 +65,7 @@ function createApp() {
   app.use('/api/geofences', require('./routes/geofence.routes'));
   app.use('/api/dashboard', require('./routes/dashboard.routes'));
   app.use('/api/reports', require('./routes/reports.routes'));
+  app.use('/api/admin/import', require('./routes/import.routes'));
   app.use('/api/admin', require('./routes/admin.routes'));
   app.use('/api/ai', require('./routes/ai.routes'));
   app.use('/api', require('./routes/misc.routes'));

@@ -74,6 +74,10 @@ api.interceptors.response.use(
     if (status === 401 && !isAuthCall && getAccessToken() && (code === 'UNAUTHORIZED' || original?._retried)) {
       emitSessionExpired();
     }
+    // Account still on a temporary password (e.g. flag set after this session started).
+    if (status === 403 && code === 'PASSWORD_CHANGE_REQUIRED' && window.location.pathname !== '/change-password') {
+      window.location.assign('/change-password');
+    }
     return Promise.reject(error);
   },
 );

@@ -16,6 +16,7 @@ import {
   Settings,
   ShieldCheck,
   TimerOff,
+  Upload,
   UserCircle,
   Users,
 } from 'lucide-react';
@@ -56,6 +57,7 @@ export const NAV = {
   admin: [
     { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true, primary: true },
     { to: '/admin/users', label: 'Users', icon: Users, primary: true },
+    { to: '/admin/import', label: 'Bulk import', icon: Upload },
     { to: '/admin/links', label: 'Parent links', icon: Link2 },
     { to: '/admin/org', label: 'Departments & hostels', icon: Building2 },
     { to: '/admin/geofences', label: 'Geofences', icon: MapPinned },

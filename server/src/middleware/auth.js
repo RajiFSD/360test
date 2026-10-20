@@ -1,8 +1,11 @@
 const db = require('../db');
 const { verifyAccessToken } = require('../utils/tokens');
-const { unauthorized, forbidden } = require('../utils/errors');
+const { AppError, unauthorized, forbidden } = require('../utils/errors');
 
 const STAFF = ['warden', 'faculty', 'admin'];
+
+// While a password change is pending, only these routes are reachable.
+const PASSWORD_CHANGE_ALLOWED = [/^\/api\/auth\/me$/, /^\/api\/auth\/change-password$/, /^\/api\/auth\/push-token$/];
 
 /**
  * Verifies the bearer token and loads the (active) user onto req.user.
@@ -18,10 +21,14 @@ function authenticate({ allowQueryToken = false } = {}) {
       const result = verifyAccessToken(token);
       if (!result.ok) throw unauthorized(result.code === 'TOKEN_EXPIRED' ? 'Access token expired' : 'Invalid token', result.code);
       const user = await db.one(
-        'SELECT id, role, name, email, phone, roll_no, hostel_id, department_id, is_active FROM users WHERE id = ?',
+        'SELECT id, role, name, email, phone, roll_no, hostel_id, department_id, is_active, must_change_password FROM users WHERE id = ?',
         [result.payload.sub],
       );
       if (!user || !user.is_active) throw unauthorized('Account disabled or not found');
+      const path = req.originalUrl.split('?')[0];
+      if (user.must_change_password && user.role !== 'admin' && !PASSWORD_CHANGE_ALLOWED.some((re) => re.test(path))) {
+        throw new AppError(403, 'PASSWORD_CHANGE_REQUIRED', 'Please change your temporary password to continue.');
+      }
       req.user = user;
       next();
     } catch (err) {

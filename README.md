@@ -116,6 +116,17 @@ The seed uses the campus geofence **Main Campus** (500 m circle at 11.0168, 76.9
 - 2 **active, tracked** trips (`S2024007`, `S2024008`) on the live map.
 - 1 **overdue** trip (`S2024009`; its parent is `parent9`).
 
+## Going live with real data
+`npm run db:seed` creates **demo** data and wipes everything — never run it on a live database. For a real installation:
+
+1. **Back up** the database (`mysqldump --single-transaction --routines --events …`).
+2. `npm run db:migrate` (adds `users.must_change_password` via migration 003).
+3. In `server/.env` set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (bcrypt-hashed by the script; never stored or printed in plain text).
+4. Copy `server/config/base-data.example.json` to `server/config/base-data.json` and fill in the admin name, the campus geofences (one or more `{ name, lat, lng, radius_m }` — e.g. the college and an off-site hostel; entering any of them counts as "returned"), hostels and departments.
+5. `npm run seed:minimal -- --wipe=CONFIRM` deletes all activity data and all users in one transaction, then creates the single admin and syncs campus, hostels and departments to exactly your lists (ids restart at 1). Without `--wipe=CONFIRM` the script is an idempotent upsert you can re-run any time; add `--reset-admin-password` to re-apply `ADMIN_PASSWORD`.
+6. Sign in as the admin → **Bulk import** and import, in this order: **staff** (wardens get their hostel), **students**, **parents**, **parent–student links**. Each upload shows a preview with per-row errors; only valid rows are saved after you confirm. Download the templates from the same page.
+7. Imported users sign in with the temporary password (shared, or generated per user — download the sign-in list once after import) and must choose their own password before using the app. The admin account is exempt.
+
 ## 6. Demo walkthrough
 
 1. **Student requests.** In the web or mobile app, log in as `S2024001`, choose **New request**, pick *Home visit*, and tap the destination on the map. The AI risk preview appears before you submit.

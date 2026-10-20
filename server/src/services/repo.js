@@ -6,7 +6,7 @@ const { iso } = require('../utils/http');
 
 const USER_SELECT = `
   SELECT u.id, u.role, u.name, u.email, u.phone, u.roll_no, u.department_id, d.name AS department,
-         u.hostel_id, h.name AS hostel, u.photo_url, u.is_active, u.created_at
+         u.hostel_id, h.name AS hostel, u.photo_url, u.is_active, u.must_change_password, u.created_at
   FROM users u
   LEFT JOIN departments d ON d.id = u.department_id
   LEFT JOIN hostels h ON h.id = u.hostel_id`;
@@ -26,6 +26,7 @@ function serializeUser(r) {
     hostel: r.hostel,
     photo_url: r.photo_url,
     is_active: !!r.is_active,
+    must_change_password: !!r.must_change_password,
     created_at: iso(r.created_at),
   };
 }
@@ -286,9 +287,16 @@ async function securityUsers() {
   return rows.map((r) => r.id);
 }
 
+/** Primary campus fence (lowest id): reference point for distances and the default map view. */
 async function getCampusFence() {
   const r = await db.one("SELECT * FROM geofences WHERE type = 'CAMPUS' AND is_active = 1 ORDER BY id LIMIT 1");
   return r ? serializeFence(r) : null;
+}
+
+/** All active campus fences (e.g. college + off-site hostel): entering any of them counts as returned. */
+async function getCampusFences() {
+  const rows = await db.query("SELECT * FROM geofences WHERE type = 'CAMPUS' AND is_active = 1 ORDER BY id");
+  return rows.map(serializeFence);
 }
 
 function serializeFence(r) {
@@ -327,6 +335,7 @@ module.exports = {
   wardensFor,
   securityUsers,
   getCampusFence,
+  getCampusFences,
   serializeFence,
   riskLevel,
   parseJson,

@@ -1,6 +1,6 @@
 import { api, getData, getList, send } from './client';
 import { API_URL } from '../lib/config';
-import { getAccessToken } from '../auth/tokens';
+import { getAccessToken, setTokens } from '../auth/tokens';
 
 // ---------- Auth ----------
 export const authApi = {
@@ -8,8 +8,27 @@ export const authApi = {
   logout: (refreshToken) => send('post', '/auth/logout', { refreshToken }),
   me: () => getData('/auth/me'),
   updateMe: (body) => send('put', '/auth/me', body),
-  changePassword: (currentPassword, newPassword) =>
-    send('post', '/auth/change-password', { currentPassword, newPassword }),
+  changePassword: async (currentPassword, newPassword) => {
+    const result = await send('post', '/auth/change-password', { currentPassword, newPassword });
+    // The server signs out every session and hands this device a fresh pair.
+    if (result?.accessToken) setTokens({ accessToken: result.accessToken, refreshToken: result.refreshToken });
+    return result;
+  },
+};
+
+// ---------- Bulk CSV import (admin) ----------
+const csvForm = (file, extra = {}) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  Object.entries(extra).forEach(([k, v]) => v != null && v !== '' && fd.append(k, v));
+  return fd;
+};
+export const importApi = {
+  template: async (type) => (await api.get(`/admin/import/${type}/template`, { responseType: 'text' })).data,
+  preview: async (type, file) => (await api.post(`/admin/import/${type}/preview`, csvForm(file))).data?.data,
+  // Hashing a password per imported user can take a while for large files: no client timeout.
+  commit: async (type, file, tempPassword) =>
+    (await api.post(`/admin/import/${type}/commit`, csvForm(file, { temp_password: tempPassword }), { timeout: 0 })).data?.data,
 };
 
 // ---------- Meta ----------

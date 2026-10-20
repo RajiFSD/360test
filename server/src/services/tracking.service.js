@@ -44,7 +44,7 @@ async function getDestinationFence(tripId) {
  */
 async function ingestPings(user, tripId, pings, now = new Date()) {
   const s = await settingsSvc.getAll();
-  const campus = await repo.getCampusFence();
+  const campus = await repo.getCampusFences();
   const destination = await getDestinationFence(tripId);
 
   const outcome = await db.transaction(async (tx) => {

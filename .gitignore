@@ -19,3 +19,4 @@ Thumbs.db
 android/
 ios/
 server/db/backups/
+server/backups/

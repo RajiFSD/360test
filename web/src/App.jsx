@@ -8,6 +8,7 @@ import LoginPage from './pages/common/LoginPage';
 const NotFoundPage = lazy(() => import('./pages/common/NotFoundPage'));
 const NotificationsPage = lazy(() => import('./pages/common/NotificationsPage'));
 const ProfilePage = lazy(() => import('./pages/common/ProfilePage'));
+const ChangePasswordPage = lazy(() => import('./pages/common/ChangePasswordPage'));
 const TripDetailPage = lazy(() => import('./pages/common/TripDetailPage'));
 const ReportsPage = lazy(() => import('./pages/common/ReportsPage'));
 const InsightsPage = lazy(() => import('./pages/common/InsightsPage'));
@@ -39,6 +40,7 @@ const OrgPage = lazy(() => import('./pages/admin/OrgPage'));
 const GeofencesPage = lazy(() => import('./pages/admin/GeofencesPage'));
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
 const AuditLogsPage = lazy(() => import('./pages/admin/AuditLogsPage'));
+const ImportPage = lazy(() => import('./pages/admin/ImportPage'));
 
 const STAFF = ['warden', 'faculty', 'admin'];
 
@@ -49,6 +51,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<HomeRedirect />} />
         <Route element={<RequireAuth />}>
+          <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route element={<AppLayout />}>
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
@@ -87,6 +90,7 @@ export default function App() {
             <Route element={<RequireRole roles={['admin']} />}>
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<UsersPage />} />
+              <Route path="/admin/import" element={<ImportPage />} />
               <Route path="/admin/links" element={<LinksPage />} />
               <Route path="/admin/org" element={<OrgPage />} />
               <Route path="/admin/geofences" element={<GeofencesPage />} />

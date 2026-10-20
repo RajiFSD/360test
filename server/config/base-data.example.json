@@ -1,0 +1,12 @@
+{
+  "admin": { "name": "College Administrator" },
+  "campuses": [
+    { "name": "Main Campus", "lat": 11.0168, "lng": 76.9558, "radius_m": 300 },
+    { "name": "College Hostel", "lat": 11.0200, "lng": 76.9600, "radius_m": 300 }
+  ],
+  "hostels": ["Boys Hostel", "Girls Hostel"],
+  "departments": [
+    { "name": "Computer Science & Engineering", "code": "CSE" },
+    { "name": "Electronics & Communication Engineering", "code": "ECE" }
+  ]
+}

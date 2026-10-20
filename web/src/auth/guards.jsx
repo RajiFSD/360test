@@ -8,6 +8,9 @@ export function RequireAuth() {
   const location = useLocation();
   if (initializing) return <FullPageSpinner label="Restoring your session" />;
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+  if (user.must_change_password && user.role !== 'admin' && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
+  }
   return <Outlet />;
 }
 
