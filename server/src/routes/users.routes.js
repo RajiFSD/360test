@@ -218,9 +218,9 @@ router.get(
     const stats = await db.one(
       `SELECT COUNT(*) AS total,
               COALESCE(SUM(t.status = 'COMPLETED'), 0) AS completed,
-              COALESCE(SUM(t.status = 'COMPLETED' AND COALESCE(t.entry_at, t.completed_at) > DATE_ADD(o.expected_return_at, INTERVAL 15 MINUTE)), 0) AS late,
-              AVG(CASE WHEN t.status = 'COMPLETED' THEN GREATEST(0, TIMESTAMPDIFF(MINUTE, o.expected_return_at, COALESCE(t.entry_at, t.completed_at))) END) AS avg_delay
-       FROM outpass_requests o LEFT JOIN trips t ON t.request_id = o.id WHERE o.student_id = ?`,
+              COALESCE(SUM(t.status = 'COMPLETED' AND COALESCE(t.entry_at, t.completed_at) > DATE_ADD(t.window_end, INTERVAL 15 MINUTE)), 0) AS late,
+              AVG(CASE WHEN t.status = 'COMPLETED' THEN GREATEST(0, TIMESTAMPDIFF(MINUTE, t.window_end, COALESCE(t.entry_at, t.completed_at))) END) AS avg_delay
+       FROM outpass_requests o LEFT JOIN trips t ON t.request_id = o.id AND o.pass_type = 'ONE_TIME' WHERE o.student_id = ?`,
       [id],
     );
     const completed = Number(stats.completed);

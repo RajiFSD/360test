@@ -11,7 +11,8 @@ import { RiskBadge, StatusBadge } from '../../components/Badges';
 import { StudentInline } from '../../components/domain';
 import { Modal } from '../../components/Modal';
 import { useToast } from '../../components/Toast';
-import { OUTPASS_STATUSES, RISK_LEVELS, humanize } from '../../lib/constants';
+import { OUTPASS_STATUSES, PASS_TYPES, RISK_LEVELS, humanize } from '../../lib/constants';
+import { DailyBadge, dayLabels } from '../../components/DailyPass';
 import { formatDateTime } from '../../lib/format';
 
 export default function StaffRequestsPage() {
@@ -20,6 +21,7 @@ export default function StaffRequestsPage() {
   const toast = useToast();
   const status = sp.get('status') ?? 'PENDING';
   const risk = sp.get('risk_level') || '';
+  const passType = sp.get('pass_type') || '';
   const page = Number(sp.get('page') || 1);
   const [q, setQ] = useState(sp.get('q') || '');
   const [selected, setSelected] = useState(() => new Set());
@@ -48,7 +50,7 @@ export default function StaffRequestsPage() {
     setSelected(new Set());
   }
 
-  const params = { status, risk_level: risk, q: sp.get('q') || '', page, pageSize: 20 };
+  const params = { status, risk_level: risk, pass_type: passType, q: sp.get('q') || '', page, pageSize: 20 };
   const query = useOutpasses(params);
   const items = useMemo(() => query.data?.items || [], [query.data]);
   const selectable = items.filter((o) => o.status === 'PENDING');
@@ -99,7 +101,7 @@ export default function StaffRequestsPage() {
       />
 
       <Card className="mb-4 p-4">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Search" htmlFor="rq-q">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" aria-hidden="true" />
@@ -112,6 +114,16 @@ export default function StaffRequestsPage() {
               {OUTPASS_STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {humanize(s)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Pass type" htmlFor="rq-type">
+            <Select id="rq-type" value={passType} onChange={(e) => update({ pass_type: e.target.value, page: 1 })}>
+              <option value="">All pass types</option>
+              {PASS_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
                 </option>
               ))}
             </Select>
@@ -158,6 +170,7 @@ export default function StaffRequestsPage() {
                   </Th>
                   <Th>Student</Th>
                   <Th>Reason</Th>
+                  <Th>Pass type</Th>
                   <Th>Departure → Return</Th>
                   <Th>Risk</Th>
                   <Th>Status</Th>
@@ -198,10 +211,21 @@ export default function StaffRequestsPage() {
                         {humanize(o.reason_category)} · {humanize(o.destination_type)}
                       </span>
                     </Td>
+                    <Td>{o.pass_type === 'DAILY' ? <DailyBadge /> : <span className="text-xs text-slate-500">One-time</span>}</Td>
                     <Td className="whitespace-nowrap text-xs">
-                      {formatDateTime(o.depart_at)}
-                      <br />
-                      {formatDateTime(o.expected_return_at)}
+                      {o.pass_type === 'DAILY' && o.schedule ? (
+                        <>
+                          {dayLabels(o.schedule.days_of_week)} · {o.schedule.depart_time}–{o.schedule.return_time}
+                          <br />
+                          {o.schedule.start_date} → {o.schedule.end_date}
+                        </>
+                      ) : (
+                        <>
+                          {formatDateTime(o.depart_at)}
+                          <br />
+                          {formatDateTime(o.expected_return_at)}
+                        </>
+                      )}
                     </Td>
                     <Td>
                       <RiskBadge level={o.risk_level} score={o.risk_score} reasons={o.risk_reasons} />
@@ -230,9 +254,12 @@ export default function StaffRequestsPage() {
                     <StudentInline student={o.student} size={32} />
                     <p className="mt-1.5 truncate text-sm font-medium text-slate-900">{o.reason}</p>
                     <p className="text-xs text-slate-500">
-                      {formatDateTime(o.depart_at)} → {formatDateTime(o.expected_return_at)}
+                      {o.pass_type === 'DAILY' && o.schedule
+                        ? `${dayLabels(o.schedule.days_of_week)} ${o.schedule.depart_time}–${o.schedule.return_time}, ${o.schedule.start_date} → ${o.schedule.end_date}`
+                        : `${formatDateTime(o.depart_at)} → ${formatDateTime(o.expected_return_at)}`}
                     </p>
                     <div className="mt-1.5 flex flex-wrap gap-2">
+                      {o.pass_type === 'DAILY' && <DailyBadge />}
                       <RiskBadge level={o.risk_level} score={o.risk_score} reasons={o.risk_reasons} />
                       <StatusBadge status={o.status} />
                     </div>

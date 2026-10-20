@@ -15,6 +15,7 @@ import { assetUrl } from '../../lib/config';
 import { formatDateTime } from '../../lib/format';
 import { QR_TRIP_STATUSES, humanize } from '../../lib/constants';
 import { StudentTripPanel } from './StudentTripPanel';
+import { DailyPassControls, ScheduleSummary } from '../../components/DailyPass';
 
 export default function StudentRequestDetail() {
   const { id } = useParams();
@@ -52,7 +53,9 @@ export default function StudentRequestDetail() {
 
   const o = q.data;
   const trip = o.trip;
-  const canCancel = o.status === 'PENDING' || (o.status === 'APPROVED' && !trip?.exit_at);
+  const isDaily = o.pass_type === 'DAILY';
+  // Daily passes are cancelled from the pass controls (future days only).
+  const canCancel = !isDaily && (o.status === 'PENDING' || (o.status === 'APPROVED' && !trip?.exit_at));
   const showTrip = trip && (QR_TRIP_STATUSES.includes(o.status) || QR_TRIP_STATUSES.includes(trip.status));
 
   return (
@@ -90,6 +93,22 @@ export default function StudentRequestDetail() {
         </div>
       )}
 
+      {isDaily && (
+        <SectionCard title="Daily pass" actions={<DailyPassControls outpass={o} />}>
+          <ScheduleSummary schedule={o.schedule} />
+          {o.status === 'APPROVED' && !trip && (
+            <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600" role="status">
+              No trip scheduled today{o.schedule?.status === 'PAUSED' ? ' (pass paused)' : ''}. Each scheduled day's QR appears here on that day.
+            </p>
+          )}
+          {trip && o.schedule?.today?.total > 0 && (
+            <p className="mt-4 text-sm text-slate-600">
+              Today: day {o.schedule.today.day} of {o.schedule.today.total}
+            </p>
+          )}
+        </SectionCard>
+      )}
+
       {showTrip && <StudentTripPanel tripId={trip.id} />}
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -99,12 +118,16 @@ export default function StudentRequestDetail() {
             <KeyValue label="Destination">
               <DestinationLine item={o} />
             </KeyValue>
-            <KeyValue label="Departure">
-              <DateTime value={o.depart_at} />
-            </KeyValue>
-            <KeyValue label="Expected return">
-              <DateTime value={o.expected_return_at} />
-            </KeyValue>
+            {!isDaily && (
+              <>
+                <KeyValue label="Departure">
+                  <DateTime value={o.depart_at} />
+                </KeyValue>
+                <KeyValue label="Expected return">
+                  <DateTime value={o.expected_return_at} />
+                </KeyValue>
+              </>
+            )}
             <KeyValue label="Reviewed by">{o.reviewer?.name || '—'}</KeyValue>
             <KeyValue label="Reviewed at">
               <DateTime value={o.reviewed_at} />

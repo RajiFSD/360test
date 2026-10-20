@@ -9,6 +9,7 @@ import { RiskBadge, StatusBadge } from '../../components/Badges';
 import { DestinationLine, OutpassListItem, TripProgress } from '../../components/domain';
 import { DateTime } from '../../components/DateTime';
 import { humanize } from '../../lib/constants';
+import { TodayTripCard } from '../../components/DailyPass';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -44,6 +45,14 @@ export default function StudentDashboard() {
             <StatCard label="Completed trips" value={q.data.stats?.completed ?? 0} icon={CheckCircle2} tone="green" />
             <StatCard label="Late returns" value={q.data.stats?.late ?? 0} icon={Clock} tone={q.data.stats?.late ? 'red' : 'slate'} />
           </div>
+
+          {q.data.daily_passes?.length > 0 && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {q.data.daily_passes.map((entry) => (
+                <TodayTripCard key={entry.outpass.id} entry={entry} />
+              ))}
+            </div>
+          )}
 
           {q.data.active_outpass ? (
             <Card className="overflow-hidden">

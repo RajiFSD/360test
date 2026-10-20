@@ -84,7 +84,7 @@ function trainFromRows(rows) {
 async function syncSamplesFromTrips() {
   const rows = await db.query(
     `SELECT t.id AS trip_id, o.student_id, o.reason_category, o.destination_type, o.dest_lat, o.dest_lng,
-            o.depart_at, o.expected_return_at, o.created_at, o.reviewed_at, COALESCE(t.entry_at, t.returned_at, t.completed_at) AS actual
+            t.window_start AS depart_at, t.window_end AS expected_return_at, o.created_at, o.reviewed_at, COALESCE(t.entry_at, t.returned_at, t.completed_at) AS actual
      FROM trips t JOIN outpass_requests o ON o.id = t.request_id
      LEFT JOIN ai_trip_samples a ON a.source_trip_id = t.id
      WHERE t.status = 'COMPLETED' AND a.id IS NULL AND COALESCE(t.entry_at, t.returned_at, t.completed_at) IS NOT NULL

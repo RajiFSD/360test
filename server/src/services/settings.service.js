@@ -18,6 +18,10 @@ const DEFAULTS = {
   tracking_overrun_max_min: { value: 720, type: 'int', help: 'Tracking stays allowed this long past expected return (overdue trips)' },
   qr_exit_early_min: { value: 60, type: 'int', help: 'How early before departure the exit scan is accepted' },
   sms_enabled: { value: false, type: 'bool', help: 'Send SMS for high-priority alerts (overdue, returned)' },
+  daily_pass_max_days: { value: 90, type: 'int', public: true, help: 'Longest date range a daily pass may cover' },
+  daily_pass_max_per_student: { value: 1, type: 'int', public: true, help: 'Daily passes a student may have pending/active at once' },
+  daily_pass_qr_grace_min: { value: 30, type: 'int', help: "Daily pass: minutes before/after the day's window the QR is accepted" },
+  daily_pass_tracking_grace_min: { value: 120, type: 'int', help: "Daily pass: tracking stays allowed this long after the day's return time" },
 };
 
 let cache = null;

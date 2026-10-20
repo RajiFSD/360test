@@ -1,10 +1,12 @@
 /**
- * Smaller periodic jobs: signal lost, auto-complete after return, expiry, ping retention.
+ * Smaller periodic jobs: signal lost, auto-complete after return, expiry (incl. daily-pass NO_SHOW), ping retention,
+ * and daily-pass trip generation.
  */
 const db = require('../db');
 const repo = require('../services/repo');
 const settingsSvc = require('../services/settings.service');
 const tripSvc = require('../services/trip.service');
+const daily = require('../services/daily.service');
 const { notify } = require('../services/notification.service');
 const { emitTo, rooms } = require('../realtime');
 
@@ -62,17 +64,27 @@ async function runAutoComplete(now = new Date()) {
 async function runExpiry(now = new Date()) {
   const pending = await db.query("UPDATE outpass_requests SET status = 'EXPIRED' WHERE status = 'PENDING' AND expected_return_at < ?", [now]);
   const unused = await db.query(
-    `SELECT t.id, t.request_id, o.student_id FROM trips t JOIN outpass_requests o ON o.id = t.request_id
-     WHERE t.status = 'APPROVED' AND t.exit_at IS NULL AND o.expected_return_at < ?`,
+    `SELECT t.id, t.request_id, o.student_id, o.pass_type FROM trips t JOIN outpass_requests o ON o.id = t.request_id
+     WHERE t.status = 'APPROVED' AND t.exit_at IS NULL AND t.window_end < ?`,
     [now],
   );
+  let noShow = 0;
   for (const t of unused) {
+    if (t.pass_type === 'DAILY') {
+      // Missed day of a daily pass: record NO_SHOW (never overdue); the pass itself continues.
+      await db.query("UPDATE trips SET status = 'NO_SHOW' WHERE id = ? AND status = 'APPROVED'", [t.id]);
+      await tripSvc.recordEvent(t.id, 'NO_SHOW', now);
+      await tripSvc.stopTracking(t.id, t.student_id, 'TRIP_CANCELLED');
+      noShow++;
+      continue;
+    }
     await db.query("UPDATE trips SET status = 'CANCELLED' WHERE id = ?", [t.id]);
     await db.query("UPDATE outpass_requests SET status = 'EXPIRED' WHERE id = ?", [t.request_id]);
     await tripSvc.stopTracking(t.id, t.student_id, 'TRIP_CANCELLED');
     emitTo([rooms.user(t.student_id), rooms.staff], 'request:updated', { id: t.request_id, status: 'EXPIRED', tripId: t.id });
   }
-  return { expiredPending: pending.affectedRows, expiredUnused: unused.length };
+  const expiredPasses = await daily.expireSchedules(now);
+  return { expiredPending: pending.affectedRows, expiredUnused: unused.length - noShow, dailyNoShow: noShow, expiredPasses };
 }
 
 /** Delete location pings older than ping_retention_days, in batches. */
@@ -88,4 +100,11 @@ async function runPingRetention(now = new Date()) {
   return { deleted };
 }
 
-module.exports = { runSignalLostCheck, runAutoComplete, runExpiry, runPingRetention };
+/** Create today's trips for active daily passes (cron 00:05 IST and on start-up) and expire finished passes. */
+async function runDailyPasses(now = new Date()) {
+  const created = await daily.generateDailyTrips({ now });
+  const expired = await daily.expireSchedules(now);
+  return { tripsCreated: created.length, passesExpired: expired };
+}
+
+module.exports = { runSignalLostCheck, runAutoComplete, runExpiry, runPingRetention, runDailyPasses };

@@ -2,7 +2,8 @@
  * Location ingestion. Enforces (server-side) that tracking is only accepted when
  *   1. trip is ACTIVE/OVERDUE (i.e. after the gate EXIT scan),
  *   2. the student has an active consent for this trip,
- *   3. now is inside the trip window [exit_at, expected_return_at + tracking_overrun_max_min].
+ *   3. now is inside the trip window [exit_at, window_end + overrun] — overrun is tracking_overrun_max_min for one-time
+ *      trips and daily_pass_tracking_grace_min for a daily pass (each day only inside that day's window).
  * Then stores pings, runs the geofence engine and broadcasts to authorised rooms.
  */
 const db = require('../db');
@@ -49,7 +50,7 @@ async function ingestPings(user, tripId, pings, now = new Date()) {
 
   const outcome = await db.transaction(async (tx) => {
     const trip = await tx.one(
-      `SELECT t.*, o.student_id, o.expected_return_at, o.destination_type, s.name AS student_name, s.roll_no
+      `SELECT t.*, o.student_id, t.window_end AS expected_return_at, o.destination_type, o.pass_type, s.name AS student_name, s.roll_no
        FROM trips t JOIN outpass_requests o ON o.id = t.request_id JOIN users s ON s.id = o.student_id
        WHERE t.id = ? FOR UPDATE`,
       [tripId],
@@ -57,7 +58,8 @@ async function ingestPings(user, tripId, pings, now = new Date()) {
     if (!trip) throw notFound('Trip');
     if (trip.student_id !== user.id) throw forbidden('You can only share location for your own trip');
     const consent = await repo.getActiveConsent(tripId, tx);
-    const decision = trackingDecision({ trip, consent, now, overrunMin: s.tracking_overrun_max_min });
+    const overrunMin = trip.pass_type === 'DAILY' ? s.daily_pass_tracking_grace_min : s.tracking_overrun_max_min;
+    const decision = trackingDecision({ trip, consent, now, overrunMin });
     if (!decision.ok) throw notAllowed(decision.reason, REASON_MESSAGES[decision.reason]);
 
     const exitMs = new Date(trip.exit_at).getTime();

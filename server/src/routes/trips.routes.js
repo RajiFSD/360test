@@ -7,6 +7,7 @@ const repo = require('../services/repo');
 const settings = require('../services/settings.service');
 const tripSvc = require('../services/trip.service');
 const tracking = require('../services/tracking.service');
+const daily = require('../services/daily.service');
 const { notify } = require('../services/notification.service');
 const { emitTo, rooms } = require('../realtime');
 const { authenticate, requireRole } = require('../middleware/auth');
@@ -51,7 +52,7 @@ router.get(
     const scope = await scopeFor(req.user);
     const where = [scope.where];
     const params = [...scope.params];
-    const statuses = csvList(req.query.status, ['APPROVED', 'ACTIVE', 'OVERDUE', 'COMPLETED', 'CANCELLED']);
+    const statuses = csvList(req.query.status, ['APPROVED', 'ACTIVE', 'OVERDUE', 'COMPLETED', 'CANCELLED', 'NO_SHOW']);
     if (statuses.length) {
       where.push('t.status IN (?)');
       params.push(statuses);
@@ -83,7 +84,7 @@ router.get(
   '/overdue',
   requireRole('warden', 'faculty', 'admin'),
   asyncHandler(async (req, res) => {
-    const { items } = await repo.listTrips("t.status = 'OVERDUE'", [], { limit: 500, order: 'o.expected_return_at ASC' });
+    const { items } = await repo.listTrips("t.status = 'OVERDUE'", [], { limit: 500, order: 't.window_end ASC' });
     const now = Date.now();
     for (const t of items) {
       t.minutes_late = Math.max(0, Math.floor((now - new Date(t.expected_return_at)) / 60000));
@@ -115,7 +116,13 @@ router.get(
   asyncHandler(async (req, res) => {
     const { raw } = await loadTripFor(req.user, Number(req.params.id));
     if (!['APPROVED', 'ACTIVE', 'OVERDUE'].includes(raw.status)) throw conflict(`Trip is ${raw.status}; no QR available`);
-    const overrun = await settings.get('tracking_overrun_max_min');
+    if (raw.pass_type === 'DAILY' && !raw.exit_at && daily.toDateStr(raw.trip_date) !== daily.localDate()) {
+      throw conflict('This daily-pass trip is not for today');
+    }
+    // One-time: return + overrun. Daily: that day's window + a small grace; once the student is out, long enough to
+    // scan back in after a late return (tracking grace). Expired or other-day QRs are rejected at the gate.
+    let overrun = await settings.get('tracking_overrun_max_min');
+    if (raw.pass_type === 'DAILY') overrun = await settings.get(raw.exit_at ? 'daily_pass_tracking_grace_min' : 'daily_pass_qr_grace_min');
     const expiresAt = new Date(new Date(raw.expected_return_at).getTime() + overrun * 60_000);
     if (expiresAt <= new Date()) throw conflict('This pass has expired');
     const token = signQrToken({ tripId: raw.id, jti: raw.qr_token_id, expiresAt }, config.qrSecret);

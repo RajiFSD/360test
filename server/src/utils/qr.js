@@ -19,6 +19,10 @@ const QR_ERRORS = {
   PASS_NOT_APPROVED: 'This outpass is not approved.',
   OUTSIDE_TIME_WINDOW: 'This pass is not valid at this time.',
   TRIP_CLOSED: 'This trip is already closed.',
+  PASS_PAUSED: 'This daily pass is paused. The student cannot leave on it until it is resumed.',
+  PASS_REVOKED: 'This daily pass has been cancelled or revoked.',
+  PASS_EXPIRED: 'This daily pass has ended.',
+  NOT_SCHEDULED_TODAY: "This QR is not for today. A daily pass needs that day's QR; ask the student to refresh the pass.",
 };
 
 /** Verify signature + expiry. Returns { ok, payload } or { ok:false, code }. Pure: no DB. */

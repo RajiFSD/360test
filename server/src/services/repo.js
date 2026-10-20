@@ -70,7 +70,7 @@ const TRIP_COLS = `t.id AS t_id, t.request_id AS t_request_id, t.status AS t_sta
   t.exit_guard_id AS t_exit_guard_id, t.entry_at AS t_entry_at, t.entry_guard_id AS t_entry_guard_id,
   t.left_campus_at AS t_left_campus_at, t.reached_destination_at AS t_reached_destination_at,
   t.returned_at AS t_returned_at, t.completed_at AS t_completed_at, t.escalation_level AS t_escalation_level,
-  t.last_ping_at AS t_last_ping_at,
+  t.last_ping_at AS t_last_ping_at, t.trip_date AS t_trip_date, t.window_start AS t_window_start, t.window_end AS t_window_end,
   EXISTS(SELECT 1 FROM tracking_consents c WHERE c.trip_id = t.id AND c.revoked_at IS NULL) AS t_consent_active`;
 
 function tripCore(r) {
@@ -90,6 +90,9 @@ function tripCore(r) {
     completed_at: iso(r.t_completed_at),
     escalation_level: r.t_escalation_level,
     last_ping_at: iso(r.t_last_ping_at),
+    trip_date: r.t_trip_date ? iso(r.t_trip_date).slice(0, 10) : null,
+    window_start: iso(r.t_window_start),
+    window_end: iso(r.t_window_end),
     consent_active: consentActive,
     tracking_active: consentActive && (r.t_status === 'ACTIVE' || r.t_status === 'OVERDUE'),
   };
@@ -101,6 +104,8 @@ function serializeOutpass(r) {
     id: r.id,
     student_id: r.student_id,
     student: studentSummary(r),
+    pass_type: r.pass_type || 'ONE_TIME',
+    schedule: r.sc_id ? require('./daily.service').serializeSchedule(scheduleFromRow(r)) : null,
     reason: r.reason,
     reason_category: r.reason_category,
     destination_type: r.destination_type,
@@ -125,18 +130,30 @@ function serializeOutpass(r) {
   };
 }
 
+const SCHEDULE_COLS = `sc.id AS sc_id, sc.dest_name AS sc_dest_name, sc.start_date AS sc_start_date, sc.end_date AS sc_end_date,
+  sc.days_of_week AS sc_days_of_week, sc.depart_time AS sc_depart_time, sc.return_time AS sc_return_time, sc.status AS sc_status,
+  sc.consent_granted_at AS sc_consent_granted_at, sc.consent_revoked_at AS sc_consent_revoked_at, sc.status_note AS sc_status_note`;
+const scheduleFromRow = (r) => Object.fromEntries(Object.entries(r).filter(([k]) => k.startsWith('sc_')).map(([k, v]) => [k.slice(3), v]));
+
+// One trip per outpass row: the only trip of a one-time pass, or TODAY's trip (campus local date) of a daily pass.
+const CURRENT_TRIP_JOIN = `LEFT JOIN trips t ON t.id = (
+    SELECT t2.id FROM trips t2 WHERE t2.request_id = o.id
+      AND (o.pass_type = 'ONE_TIME' OR t2.trip_date = DATE(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 330 MINUTE)))
+    ORDER BY t2.id DESC LIMIT 1)`;
+
 const OUTPASS_SELECT = `
-  SELECT o.*, rv.name AS reviewer_name, ${STUDENT_COLS}, ${TRIP_COLS}
+  SELECT o.*, rv.name AS reviewer_name, ${STUDENT_COLS}, ${TRIP_COLS}, ${SCHEDULE_COLS}
   FROM outpass_requests o
   ${STUDENT_JOINS}
   LEFT JOIN users rv ON rv.id = o.reviewed_by
-  LEFT JOIN trips t ON t.request_id = o.id`;
+  LEFT JOIN outpass_schedules sc ON sc.request_id = o.id
+  ${CURRENT_TRIP_JOIN}`;
 
 /** where: SQL fragment using aliases o, s, t (e.g. "o.status = ?"). */
 async function listOutpasses(where = '1=1', params = [], { limit = 20, offset = 0, order = 'o.created_at DESC' } = {}) {
   const rows = await db.query(`${OUTPASS_SELECT} WHERE ${where} ORDER BY ${order} LIMIT ? OFFSET ?`, [...params, limit, offset]);
   const [{ total }] = await db.query(
-    `SELECT COUNT(*) AS total FROM outpass_requests o ${STUDENT_JOINS} LEFT JOIN trips t ON t.request_id = o.id WHERE ${where}`,
+    `SELECT COUNT(*) AS total FROM outpass_requests o ${STUDENT_JOINS} LEFT JOIN outpass_schedules sc ON sc.request_id = o.id ${CURRENT_TRIP_JOIN} WHERE ${where}`,
     params,
   );
   return { items: rows.map(serializeOutpass), total: Number(total) };
@@ -168,8 +185,10 @@ function serializeTrip(r) {
     dest_address: r.dest_address,
     dest_lat: Number(r.dest_lat),
     dest_lng: Number(r.dest_lng),
-    depart_at: iso(r.depart_at),
-    expected_return_at: iso(r.expected_return_at),
+    pass_type: r.pass_type || 'ONE_TIME',
+    // A trip's own window (for a daily pass: that day's departure/return; for one-time: the request's).
+    depart_at: iso(r.t_window_start || r.depart_at),
+    expected_return_at: iso(r.t_window_end || r.expected_return_at),
     request_status: r.status,
     risk_score: r.risk_score,
     risk_level: riskLevel(r.risk_score),
@@ -204,8 +223,9 @@ async function getTrip(id) {
 /** Raw trip + request row for business logic (no serialization). */
 async function getTripRaw(id, conn = db) {
   return conn.one(
-    `SELECT t.*, o.student_id, o.depart_at, o.expected_return_at, o.dest_lat, o.dest_lng, o.destination_type,
-            o.status AS request_status, s.name AS student_name, s.roll_no
+    // depart_at / expected_return_at are the TRIP's window, so gate, QR, check-in and completion work per day.
+    `SELECT t.*, o.student_id, t.window_start AS depart_at, t.window_end AS expected_return_at, o.dest_lat, o.dest_lng,
+            o.destination_type, o.pass_type, o.status AS request_status, s.name AS student_name, s.roll_no
      FROM trips t JOIN outpass_requests o ON o.id = t.request_id JOIN users s ON s.id = o.student_id
      WHERE t.id = ?`,
     [id],

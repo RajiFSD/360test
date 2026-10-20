@@ -20,7 +20,7 @@ router.post(
   asyncHandler(async (req, res) => {
     // Preview only: rejections are logged, successful previews are not.
     const r = await gate.verifyToken(req.body.token, req.user.id);
-    ok(res, { valid: true, action: r.action, student: r.student, outpass: r.outpass, trip: r.trip });
+    ok(res, { valid: true, action: r.action, student: r.student, outpass: r.outpass, trip: r.trip, daily: r.daily || null });
   }),
 );
 

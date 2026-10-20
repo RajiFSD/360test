@@ -13,7 +13,7 @@ async function pastDelayRate(studentId) {
   const s = await db.one('SELECT COUNT(*) AS n, COALESCE(SUM(is_late),0) AS late FROM ai_trip_samples WHERE student_id = ?', [studentId]);
   const live = await db.one(
     `SELECT COUNT(*) AS n,
-            COALESCE(SUM(COALESCE(t.entry_at, t.returned_at, t.completed_at) > DATE_ADD(o.expected_return_at, INTERVAL 15 MINUTE)), 0) AS late
+            COALESCE(SUM(COALESCE(t.entry_at, t.returned_at, t.completed_at) > DATE_ADD(t.window_end, INTERVAL 15 MINUTE)), 0) AS late
      FROM trips t JOIN outpass_requests o ON o.id = t.request_id
      LEFT JOIN ai_trip_samples a ON a.source_trip_id = t.id
      WHERE o.student_id = ? AND t.status = 'COMPLETED' AND a.id IS NULL`,
@@ -86,8 +86,8 @@ async function insights() {
   const late = await db.query(
     `SELECT * FROM (
        SELECT s.id AS student_id, s.name, s.roll_no, COUNT(*) AS trips,
-              SUM(COALESCE(t.entry_at, t.completed_at) > DATE_ADD(o.expected_return_at, INTERVAL 15 MINUTE)) AS late_trips,
-              AVG(GREATEST(0, TIMESTAMPDIFF(MINUTE, o.expected_return_at, COALESCE(t.entry_at, t.completed_at)))) AS avg_delay_min
+              SUM(COALESCE(t.entry_at, t.completed_at) > DATE_ADD(t.window_end, INTERVAL 15 MINUTE)) AS late_trips,
+              AVG(GREATEST(0, TIMESTAMPDIFF(MINUTE, t.window_end, COALESCE(t.entry_at, t.completed_at)))) AS avg_delay_min
        FROM trips t JOIN outpass_requests o ON o.id = t.request_id JOIN users s ON s.id = o.student_id
        WHERE t.status = 'COMPLETED'
        GROUP BY s.id, s.name, s.roll_no
@@ -100,7 +100,7 @@ async function insights() {
   );
   const byCat = await db.query(
     `SELECT o.reason_category AS category, COUNT(*) AS count,
-            AVG(COALESCE(t.entry_at, t.completed_at) > DATE_ADD(o.expected_return_at, INTERVAL 15 MINUTE)) AS late_rate
+            AVG(COALESCE(t.entry_at, t.completed_at) > DATE_ADD(t.window_end, INTERVAL 15 MINUTE)) AS late_rate
      FROM trips t JOIN outpass_requests o ON o.id = t.request_id WHERE t.status = 'COMPLETED' GROUP BY o.reason_category`,
   );
   const catMap = Object.fromEntries(byCat.map((r) => [r.category, r]));

@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const repo = require('../services/repo');
+const daily = require('../services/daily.service');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/errors');
 const { ok } = require('../utils/http');
@@ -32,7 +33,7 @@ router.get(
       [today],
     );
     const pending = await repo.listOutpasses("o.status = 'PENDING'", [], { limit: 10, order: 'o.risk_score DESC, o.depart_at ASC' });
-    const overdue = await repo.listTrips("t.status = 'OVERDUE'", [], { limit: 10, order: 'o.expected_return_at ASC' });
+    const overdue = await repo.listTrips("t.status = 'OVERDUE'", [], { limit: 10, order: 't.window_end ASC' });
     ok(res, {
       pending_count: Number(c.pending_count),
       active_count: Number(c.active_count),
@@ -50,18 +51,34 @@ router.get(
   '/student',
   requireRole('student'),
   asyncHandler(async (req, res) => {
-    const active = await repo.listOutpasses("o.student_id = ? AND o.status IN ('PENDING','APPROVED','ACTIVE','OVERDUE')", [req.user.id], {
+    await daily.generateDailyTrips({ studentId: req.user.id }); // lazy: today's trip for running daily passes
+    // Daily passes running today: today's trip (with its window) or "no trip scheduled today".
+    const runningPasses = await repo.listOutpasses(
+      "o.student_id = ? AND o.pass_type = 'DAILY' AND o.status = 'APPROVED' AND sc.status IN ('ACTIVE','PAUSED')",
+      [req.user.id],
+      { limit: 5, order: 'sc.start_date' },
+    );
+    const today = daily.localDate();
+    const daily_passes = runningPasses.items.map((p) => ({
+      outpass: p,
+      today: today,
+      today_trip: p.trip && p.trip.trip_date === today ? p.trip : null,
+      scheduled_today: p.schedule.status === 'ACTIVE' && p.schedule.start_date <= today && p.schedule.end_date >= today && p.schedule.days_of_week.includes(daily.dayOf(today)),
+      day: p.trip ? daily.dayNumber(p.schedule, p.trip.trip_date) : null,
+    }));
+    const active = await repo.listOutpasses("o.student_id = ? AND o.pass_type = 'ONE_TIME' AND o.status IN ('PENDING','APPROVED','ACTIVE','OVERDUE')", [req.user.id], {
       limit: 1,
       order: "FIELD(o.status, 'OVERDUE','ACTIVE','APPROVED','PENDING'), o.depart_at",
     });
     const recent = await repo.listOutpasses('o.student_id = ?', [req.user.id], { limit: 5 });
     const s = await db.one(
       `SELECT COUNT(*) AS total, COALESCE(SUM(o.status = 'COMPLETED'), 0) AS completed,
-              COALESCE(SUM(o.status = 'COMPLETED' AND COALESCE(t.entry_at, t.completed_at) > DATE_ADD(o.expected_return_at, INTERVAL 15 MINUTE)), 0) AS late
-       FROM outpass_requests o LEFT JOIN trips t ON t.request_id = o.id WHERE o.student_id = ?`,
+              COALESCE(SUM(o.status = 'COMPLETED' AND COALESCE(t.entry_at, t.completed_at) > DATE_ADD(t.window_end, INTERVAL 15 MINUTE)), 0) AS late
+       FROM outpass_requests o LEFT JOIN trips t ON t.request_id = o.id AND o.pass_type = 'ONE_TIME' WHERE o.student_id = ?`,
       [req.user.id],
     );
     ok(res, {
+      daily_passes,
       active_outpass: active.items[0] || null,
       recent: recent.items,
       stats: { total: Number(s.total), completed: Number(s.completed), late: Number(s.late) },

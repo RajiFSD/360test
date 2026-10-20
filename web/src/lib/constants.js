@@ -29,6 +29,27 @@ export const REASON_CATEGORIES = [
   'OTHER',
 ];
 
+export const DAILY_CATEGORIES = [
+  { value: 'COLLEGE_WORK', label: 'College work' },
+  { value: 'INTERNSHIP', label: 'Internship / Project' },
+  { value: 'TUITION', label: 'Tuition / Coaching' },
+  { value: 'SPORTS', label: 'Sports' },
+  { value: 'OTHER', label: 'Other' },
+];
+export const WEEKDAYS = [
+  { value: 'MON', label: 'Mon' },
+  { value: 'TUE', label: 'Tue' },
+  { value: 'WED', label: 'Wed' },
+  { value: 'THU', label: 'Thu' },
+  { value: 'FRI', label: 'Fri' },
+  { value: 'SAT', label: 'Sat' },
+  { value: 'SUN', label: 'Sun' },
+];
+export const PASS_TYPES = [
+  { value: 'ONE_TIME', label: 'One-time' },
+  { value: 'DAILY', label: 'Daily pass' },
+];
+
 export const DESTINATION_TYPES = ['HOME', 'OTHER'];
 
 export const OUTPASS_STATUSES = [
@@ -42,7 +63,7 @@ export const OUTPASS_STATUSES = [
   'EXPIRED',
 ];
 
-export const TRIP_STATUSES = ['APPROVED', 'ACTIVE', 'OVERDUE', 'COMPLETED', 'CANCELLED'];
+export const TRIP_STATUSES = ['APPROVED', 'ACTIVE', 'OVERDUE', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
 
 export const RISK_LEVELS = ['LOW', 'MEDIUM', 'HIGH'];
 

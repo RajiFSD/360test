@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const { runOverdueCheck } = require('./overdue.job');
-const { runSignalLostCheck, runAutoComplete, runExpiry, runPingRetention } = require('./monitor.jobs');
+const { runSignalLostCheck, runAutoComplete, runExpiry, runPingRetention, runDailyPasses } = require('./monitor.jobs');
 
 const running = new Set();
 
@@ -29,8 +29,11 @@ function startJobs() {
     cron.schedule('*/5 * * * *', guarded('auto-complete', () => runAutoComplete())),
     cron.schedule('*/10 * * * *', guarded('expiry', () => runExpiry())),
     cron.schedule('30 3 * * *', guarded('ping-retention', () => runPingRetention())),
+    cron.schedule('5 0 * * *', guarded('daily-passes', () => runDailyPasses()), { timezone: 'Asia/Kolkata' }),
   ];
-  console.log('[jobs] scheduled: overdue(5m), signal-lost(2m), auto-complete(5m), expiry(10m), ping-retention(daily 03:30)');
+  // Catch up if the server was down at 00:05 (idempotent).
+  guarded('daily-passes', () => runDailyPasses())();
+  console.log('[jobs] scheduled: overdue(5m), signal-lost(2m), auto-complete(5m), expiry(10m), ping-retention(daily 03:30), daily-passes(00:05 IST)');
   return () => tasks.forEach((t) => t.stop());
 }
 

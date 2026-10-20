@@ -27,9 +27,10 @@ const defaultDeps = {
   /** Trips past expected return that are still out. */
   findCandidates: (now) =>
     db.query(
-      `SELECT t.id, t.request_id, t.status, t.escalation_level, o.student_id, o.expected_return_at, s.name AS student_name, s.roll_no
+      // Each trip's own window: per day for a daily pass. Only trips that exited (ACTIVE/OVERDUE) can be overdue.
+      `SELECT t.id, t.request_id, t.status, t.escalation_level, o.student_id, t.window_end AS expected_return_at, s.name AS student_name, s.roll_no
        FROM trips t JOIN outpass_requests o ON o.id = t.request_id JOIN users s ON s.id = o.student_id
-       WHERE t.status IN ('ACTIVE','OVERDUE') AND t.returned_at IS NULL AND o.expected_return_at < ?`,
+       WHERE t.status IN ('ACTIVE','OVERDUE') AND t.returned_at IS NULL AND t.window_end < ?`,
       [now],
     ),
   markOverdue: async (trip, now) => {

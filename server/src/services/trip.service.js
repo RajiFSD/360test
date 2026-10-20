@@ -116,7 +116,8 @@ async function completeTrip(tripId, { at = new Date(), reason = 'ENTRY_SCAN' } =
       at,
       tripId,
     ]);
-    await tx.query("UPDATE outpass_requests SET status = 'COMPLETED' WHERE id = ?", [trip.request_id]);
+    // A daily pass is completed by expiry, not by one day's trip.
+    await tx.query("UPDATE outpass_requests SET status = 'COMPLETED' WHERE id = ? AND pass_type = 'ONE_TIME'", [trip.request_id]);
     await recordEvent(tripId, 'COMPLETED', at, { reason }, tx);
   });
   if (!trip.returned_at) await onReturnedCampus(trip, at, reason);

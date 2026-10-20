@@ -236,3 +236,30 @@ Columns — students: `name, roll_no, email, phone, department, hostel` · paren
 
 ## Health
 `GET /health` → `{ ok: true, db: true, time }`
+
+## Daily (recurring) passes
+A **daily pass** is one request (`pass_type: "DAILY"`) approved once by staff; the server then creates **one trip per scheduled day** (cron 00:05 IST + lazily when the student opens the app / the gate looks them up). Each day's trip has its own `trip_date`, window (`window_start`/`window_end` = that day's `depart_time`/`return_time`, IST), QR id, status, consent, tracking and gate logs. One-time outpasses are unchanged (`pass_type: "ONE_TIME"`, the default).
+
+Daily categories (`reason_category`): `COLLEGE_WORK`, `INTERNSHIP`, `TUITION`, `SPORTS`, `OTHER`. Weekdays: `MON`…`SUN`. Trip status adds `NO_SHOW` (scheduled day, never scanned out — never overdue).
+
+| Method | Path | Role | Body / Query | Returns |
+|---|---|---|---|---|
+| POST | `/outpasses` | student | `{ pass_type: "DAILY", reason, reason_category, dest_name, dest_address, dest_lat, dest_lng, start_date: "YYYY-MM-DD", end_date, days_of_week: ["MON",…], depart_time: "HH:MM", return_time: "HH:MM", attachment_url?, consent?: true }` | `Outpass` (with `schedule`). 400 if return ≤ departure, start in the past, range > `daily_pass_max_days` (90), no matching weekday; 409 if it overlaps another pending/running pass or exceeds `daily_pass_max_per_student` (1) |
+| GET | `/outpasses?pass_type=DAILY\|ONE_TIME` | as before | | `Outpass[]` |
+| GET | `/outpasses/daily?status=RUNNING\|ACTIVE\|PAUSED\|CANCELLED\|EXPIRED&q=` | staff | default `RUNNING` (approved, ACTIVE/PAUSED) | `Outpass[]` with `schedule.stats` |
+| GET | `/outpasses/:id` | scoped | | daily: `schedule` + `schedule.stats` + `schedule.today: { day, total }`; `trip` = **today's** trip (or `null` on off days) |
+| POST | `/outpasses/:id/approve` / `/reject` | staff | as before | approves/rejects the **whole** pass |
+| POST | `/outpasses/:id/pause` | owner student or staff | `{ note? }` | today's unused trip is cancelled; a trip already out finishes normally |
+| POST | `/outpasses/:id/resume` | owner student or staff | – | today's trip re-opened (new QR) if still in its window |
+| POST | `/outpasses/:id/revoke` | staff | `{ remarks }` (required) | pass CANCELLED; stops all future days |
+| POST | `/outpasses/:id/cancel` | owner student | – | daily: cancels future days (same as revoke, by the student) |
+| POST | `/outpasses/:id/consent` | owner student | `{ accept: true }` | pass-level consent covering only the scheduled windows; today's trip gets a consent record |
+| DELETE | `/outpasses/:id/consent` | owner student | – | revokes pass consent and stops today's tracking. Per-day revoke: `DELETE /trips/:id/consent` |
+| GET | `/reports/daily-passes?from=&to=` | staff | | `{ passes_total, by_status, days_scheduled_to_date, days_used, days_late, days_no_show, attendance_rate, late_rate, no_show_rate, per_pass: [{ id, student, dest_name, schedule, status, total_days, scheduled_to_date, completed, late, no_show, attendance_rate, late_rate, no_show_rate }] }` |
+
+`schedule` object: `{ id, dest_name, start_date, end_date, days_of_week: ["MON",…], depart_time: "HH:MM", return_time: "HH:MM", status: "ACTIVE"|"PAUSED"|"CANCELLED"|"EXPIRED", consent_active, status_note, total_days, stats?: { total_days, scheduled_to_date, completed, late, no_show, in_progress, late_rate, no_show_rate } }`.
+`Trip` gains `pass_type`, `trip_date`, `window_start`, `window_end`; `depart_at`/`expected_return_at` on a trip are that trip's own window.
+
+`GET /dashboard/student` adds `daily_passes: [{ outpass, today: "YYYY-MM-DD", today_trip: Trip | null, scheduled_today: bool, day: { day, total } | null }]` ("Today's trip" card; `today_trip = null` → "No trip scheduled today"). `active_outpass` now only covers one-time outpasses.
+
+QR (`GET /trips/:id/qr`): a daily trip's QR is only issued on its own date and expires at `window_end + daily_pass_qr_grace_min` (30) — or `+ daily_pass_tracking_grace_min` (120) once the student is out, so a late return can still scan in. Gate (`/gate/verify`, `/gate/scan`, `/gate/lookup`) responses add `daily: { day, total, trip_date, window_start, window_end, schedule_status } | null`. New 422 codes: `PASS_PAUSED`, `PASS_REVOKED`, `PASS_EXPIRED`, `NOT_SCHEDULED_TODAY` (plus the existing `OUTSIDE_TIME_WINDOW`, `QR_EXPIRED`, `QR_ALREADY_USED`). Settings: `daily_pass_max_days`, `daily_pass_max_per_student`, `daily_pass_qr_grace_min`, `daily_pass_tracking_grace_min`.

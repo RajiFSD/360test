@@ -88,6 +88,13 @@ export const outpassApi = {
   approve: (id, remarks) => send('post', `/outpasses/${id}/approve`, remarks ? { remarks } : {}),
   reject: (id, remarks) => send('post', `/outpasses/${id}/reject`, { remarks }),
   bulkApprove: (ids, remarks) => send('post', '/outpasses/bulk-approve', remarks ? { ids, remarks } : { ids }),
+  // Daily (recurring) passes
+  dailyList: (params) => getList('/outpasses/daily', params),
+  pause: (id, note) => send('post', `/outpasses/${id}/pause`, note ? { note } : {}),
+  resume: (id) => send('post', `/outpasses/${id}/resume`),
+  revoke: (id, remarks) => send('post', `/outpasses/${id}/revoke`, { remarks }),
+  grantPassConsent: (id) => send('post', `/outpasses/${id}/consent`, { accept: true }),
+  revokePassConsent: (id) => send('delete', `/outpasses/${id}/consent`),
 };
 
 // ---------- Trips ----------
@@ -141,6 +148,7 @@ export const dashboardApi = {
 // ---------- Reports ----------
 export const reportsApi = {
   summary: (params) => getData('/reports/summary', params),
+  dailyPasses: (params) => getData('/reports/daily-passes', params),
   exportUrl: ({ type, format, from, to }) => {
     const qs = new URLSearchParams();
     qs.set('type', type);

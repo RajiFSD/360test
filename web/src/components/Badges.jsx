@@ -12,6 +12,8 @@ const STATUS_STYLES = {
   REJECTED: 'bg-rose-50 text-rose-800 ring-rose-400/40',
   CANCELLED: 'bg-slate-100 text-slate-600 ring-slate-400/40',
   EXPIRED: 'bg-slate-100 text-slate-600 ring-slate-400/40',
+  NO_SHOW: 'bg-slate-100 text-slate-600 ring-slate-400/40',
+  PAUSED: 'bg-amber-50 text-amber-800 ring-amber-600/30',
 };
 
 const STATUS_DOT = {
@@ -23,6 +25,7 @@ const STATUS_DOT = {
   REJECTED: 'bg-rose-500',
   CANCELLED: 'bg-slate-400',
   EXPIRED: 'bg-slate-400',
+  NO_SHOW: 'bg-slate-400',
 };
 
 /** Hex colours for maps/charts keyed by status. */
@@ -35,6 +38,7 @@ export const STATUS_HEX = {
   REJECTED: '#e11d48',
   CANCELLED: '#94a3b8',
   EXPIRED: '#64748b',
+  NO_SHOW: '#64748b',
 };
 
 export function StatusBadge({ status, className }) {

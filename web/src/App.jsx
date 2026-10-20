@@ -24,6 +24,7 @@ const StaffRequestsPage = lazy(() => import('./pages/staff/StaffRequestsPage'));
 const StaffRequestDetail = lazy(() => import('./pages/staff/StaffRequestDetail'));
 const LiveMapPage = lazy(() => import('./pages/staff/LiveMapPage'));
 const OverduePage = lazy(() => import('./pages/staff/OverduePage'));
+const DailyPassesPage = lazy(() => import('./pages/staff/DailyPassesPage'));
 const StudentsPage = lazy(() => import('./pages/staff/StudentsPage'));
 const StudentHistoryPage = lazy(() => import('./pages/staff/StudentHistoryPage'));
 
@@ -73,6 +74,7 @@ export default function App() {
               <Route path="/staff/requests/:id" element={<StaffRequestDetail />} />
               <Route path="/staff/live" element={<LiveMapPage />} />
               <Route path="/staff/overdue" element={<OverduePage />} />
+              <Route path="/staff/passes" element={<DailyPassesPage />} />
               <Route path="/staff/students" element={<StudentsPage />} />
               <Route path="/staff/students/:id" element={<StudentHistoryPage />} />
               <Route path="/reports" element={<ReportsPage />} />

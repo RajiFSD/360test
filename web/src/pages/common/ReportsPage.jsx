@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { CheckCircle2, ClipboardList, Download, FileText, Timer } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ClipboardList, Download, FileText, Timer } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useReportSummary } from '../../api/hooks';
 import { reportsApi } from '../../api/endpoints';
 import { Button, Card, Field, Input, PageHeader, Select, StatCard, Table, Td, Th } from '../../components/ui';
@@ -165,6 +166,69 @@ export default function ReportsPage() {
           </Card>
         </>
       )}
+
+      {!invalidRange && <DailyPassReport range={range} />}
+    </div>
+  );
+}
+
+/** Daily passes: counts, attendance (days used vs scheduled) and late / no-show rate per pass. */
+function DailyPassReport({ range }) {
+  const q = useQuery({ queryKey: ['reports', 'daily-passes', range], queryFn: () => reportsApi.dailyPasses(range) });
+  if (q.isPending) return <SkeletonCards count={4} />;
+  if (q.isError) return <ErrorState error={q.error} onRetry={q.refetch} title="Could not load daily pass report" />;
+  const d = q.data;
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold text-slate-900">Daily passes</h2>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Daily passes" value={d.passes_total} icon={CalendarDays} tone="indigo" />
+        <StatCard label="Days used / scheduled" value={`${d.days_used} / ${d.days_scheduled_to_date}`} hint={formatPercent(d.attendance_rate, 0)} icon={CheckCircle2} tone="green" />
+        <StatCard label="Late days" value={d.days_late} hint={formatPercent(d.late_rate, 1)} icon={Timer} tone={d.days_late ? 'red' : 'slate'} />
+        <StatCard label="No-show days" value={d.days_no_show} hint={formatPercent(d.no_show_rate, 1)} icon={ClipboardList} tone={d.days_no_show ? 'amber' : 'slate'} />
+      </div>
+      <Card>
+        <Table>
+          <thead>
+            <tr>
+              <Th>Student</Th>
+              <Th>Place</Th>
+              <Th>Status</Th>
+              <Th className="text-right">Used / scheduled</Th>
+              <Th className="text-right">Late</Th>
+              <Th className="text-right">No-show</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {d.per_pass.length ? (
+              d.per_pass.map((p) => (
+                <tr key={p.id}>
+                  <Td>
+                    {p.student?.name} <span className="text-xs text-slate-500">{p.student?.roll_no}</span>
+                  </Td>
+                  <Td>{p.dest_name}</Td>
+                  <Td>{humanize(p.status)}</Td>
+                  <Td className="text-right tabular-nums">
+                    {p.completed} / {p.scheduled_to_date} <span className="text-xs text-slate-500">({formatPercent(p.attendance_rate, 0)})</span>
+                  </Td>
+                  <Td className="text-right tabular-nums">
+                    {p.late} <span className="text-xs text-slate-500">({formatPercent(p.late_rate, 0)})</span>
+                  </Td>
+                  <Td className="text-right tabular-nums">
+                    {p.no_show} <span className="text-xs text-slate-500">({formatPercent(p.no_show_rate, 0)})</span>
+                  </Td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <Td colSpan={6} className="text-center text-slate-500">
+                  No daily passes in this period
+                </Td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
+      </Card>
     </div>
   );
 }

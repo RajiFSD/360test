@@ -196,6 +196,7 @@ const JOBS = {
   'auto-complete': () => require('../jobs/monitor.jobs').runAutoComplete(),
   expiry: () => require('../jobs/monitor.jobs').runExpiry(),
   'ping-retention': () => require('../jobs/monitor.jobs').runPingRetention(),
+  'daily-passes': () => require('../jobs/monitor.jobs').runDailyPasses(),
 };
 router.post(
   '/jobs/:name/run',

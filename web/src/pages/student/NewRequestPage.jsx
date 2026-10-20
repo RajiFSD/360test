@@ -12,6 +12,7 @@ import { useToast } from '../../components/Toast';
 import { DESTINATION_TYPES, REASON_CATEGORIES, humanize } from '../../lib/constants';
 import { formatDateTime, isoToLocalInput, localInputToIso } from '../../lib/format';
 import { getCurrentPosition } from '../../lib/geo';
+import DailyPassForm from './DailyPassForm';
 
 const MAX_DAYS = 30;
 
@@ -35,6 +36,7 @@ export default function NewRequestPage() {
     depart_at: times.depart,
     expected_return_at: times.ret,
   });
+  const [passType, setPassType] = useState('ONE_TIME');
   const [pos, setPos] = useState(null);
   const [errors, setErrors] = useState({});
   const [attachment, setAttachment] = useState(null); // { name, url }
@@ -173,6 +175,29 @@ export default function NewRequestPage() {
         title="New outpass request"
         subtitle="Fill in the details. You'll see an AI delay-risk preview before submitting."
       />
+      <div className="mb-6 grid max-w-md grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="Pass type">
+        {[
+          ['ONE_TIME', 'One-time trip'],
+          ['DAILY', 'Daily pass'],
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={passType === value}
+            onClick={() => setPassType(value)}
+            className={`rounded-lg px-3 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+              passType === value ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {passType === 'DAILY' ? (
+        <DailyPassForm />
+      ) : (
+      <>
       <form onSubmit={onReview} noValidate className="grid gap-6 lg:grid-cols-5">
         <Card className="lg:col-span-3">
           <CardHeader title="Trip details" />
@@ -349,6 +374,8 @@ export default function NewRequestPage() {
           )}
         </div>
       </Modal>
+      </>
+      )}
     </div>
   );
 }

@@ -17,7 +17,9 @@ function range(query) {
   return { from, to };
 }
 
-const LATE = 'COALESCE(t.entry_at, t.completed_at) > DATE_ADD(o.expected_return_at, INTERVAL 15 MINUTE)';
+const LATE = 'COALESCE(t.entry_at, t.completed_at) > DATE_ADD(t.window_end, INTERVAL 15 MINUTE)';
+// Request-level stats count one-time trips; daily passes have their own attendance report (/reports/daily-passes).
+const ONE_TRIP_JOIN = "LEFT JOIN trips t ON t.request_id = o.id AND o.pass_type = 'ONE_TIME'";
 
 router.get(
   '/summary',
@@ -31,21 +33,21 @@ router.get(
       `SELECT DATE(DATE_ADD(o.created_at, INTERVAL 330 MINUTE)) AS d, COUNT(*) AS requests,
               SUM(o.status IN ('APPROVED','ACTIVE','OVERDUE','COMPLETED')) AS approved,
               SUM(t.status = 'COMPLETED' AND ${LATE}) AS late
-       FROM outpass_requests o LEFT JOIN trips t ON t.request_id = o.id
+       FROM outpass_requests o ${ONE_TRIP_JOIN}
        WHERE o.created_at BETWEEN ? AND ? GROUP BY d ORDER BY d`,
       p,
     );
     const byCat = await db.query(
       `SELECT o.reason_category AS category, COUNT(*) AS count,
               AVG(CASE WHEN t.status = 'COMPLETED' THEN ${LATE} END) AS late_rate
-       FROM outpass_requests o LEFT JOIN trips t ON t.request_id = o.id
+       FROM outpass_requests o ${ONE_TRIP_JOIN}
        WHERE o.created_at BETWEEN ? AND ? GROUP BY o.reason_category ORDER BY count DESC`,
       p,
     );
     const k = await db.one(
       `SELECT AVG(CASE WHEN o.reviewed_at IS NOT NULL THEN TIMESTAMPDIFF(SECOND, o.created_at, o.reviewed_at) END) / 60 AS avg_approval,
               AVG(CASE WHEN t.status = 'COMPLETED' THEN NOT (${LATE}) END) AS on_time, COUNT(*) AS total
-       FROM outpass_requests o LEFT JOIN trips t ON t.request_id = o.id WHERE o.created_at BETWEEN ? AND ?`,
+       FROM outpass_requests o ${ONE_TRIP_JOIN} WHERE o.created_at BETWEEN ? AND ?`,
       p,
     );
     ok(res, {
@@ -66,6 +68,57 @@ router.get(
   }),
 );
 
+/** Daily passes overlapping the range: counts, attendance (days used vs scheduled), late and no-show rates per pass. */
+router.get(
+  '/daily-passes',
+  authenticate(),
+  requireRole('warden', 'faculty', 'admin'),
+  asyncHandler(async (req, res) => {
+    const daily = require('../services/daily.service');
+    const repo = require('../services/repo');
+    const { from, to } = range(req.query);
+    const { items } = await repo.listOutpasses(
+      "o.pass_type = 'DAILY' AND o.status IN ('APPROVED','COMPLETED','CANCELLED') AND sc.start_date <= ? AND sc.end_date >= ?",
+      [daily.localDate(to), daily.localDate(from)],
+      { limit: 1000, order: 'sc.start_date DESC' },
+    );
+    const stats = await daily.passStats(items.map((p) => p.id));
+    const perPass = items.map((p) => {
+      const st = stats.get(p.id) || { scheduled_to_date: 0, completed: 0, late: 0, no_show: 0, total_days: 0, late_rate: 0, no_show_rate: 0 };
+      return {
+        id: p.id,
+        student: p.student,
+        dest_name: p.schedule?.dest_name,
+        reason_category: p.reason_category,
+        schedule: p.schedule,
+        status: p.schedule?.status,
+        ...st,
+        attendance_rate: st.scheduled_to_date ? Number((st.completed / st.scheduled_to_date).toFixed(3)) : 0,
+      };
+    });
+    const sum = (k) => perPass.reduce((s, p) => s + (p[k] || 0), 0);
+    const byStatus = {};
+    perPass.forEach((p) => (byStatus[p.status] = (byStatus[p.status] || 0) + 1));
+    const scheduled = sum('scheduled_to_date');
+    const used = sum('completed');
+    const noShow = sum('no_show');
+    ok(res, {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      passes_total: perPass.length,
+      by_status: Object.entries(byStatus).map(([status, count]) => ({ status, count })),
+      days_scheduled_to_date: scheduled,
+      days_used: used,
+      days_late: sum('late'),
+      days_no_show: noShow,
+      attendance_rate: scheduled ? Number((used / scheduled).toFixed(3)) : 0,
+      late_rate: used ? Number((sum('late') / used).toFixed(3)) : 0,
+      no_show_rate: used + noShow ? Number((noShow / (used + noShow)).toFixed(3)) : 0,
+      per_pass: perPass,
+    });
+  }),
+);
+
 const EXPORTS = {
   outpasses: {
     title: 'Outpass requests',
@@ -78,7 +131,7 @@ const EXPORTS = {
   trips: {
     title: 'Trips',
     sql: `SELECT t.id, s.roll_no, s.name AS student, t.status, t.exit_at, t.reached_destination_at, t.returned_at, t.entry_at,
-                 o.expected_return_at, GREATEST(0, TIMESTAMPDIFF(MINUTE, o.expected_return_at, COALESCE(t.entry_at, t.completed_at))) AS delay_min,
+                 t.trip_date, t.window_end AS expected_return_at, GREATEST(0, TIMESTAMPDIFF(MINUTE, t.window_end, COALESCE(t.entry_at, t.completed_at))) AS delay_min,
                  t.escalation_level
           FROM trips t JOIN outpass_requests o ON o.id = t.request_id JOIN users s ON s.id = o.student_id
           WHERE t.created_at BETWEEN ? AND ? ORDER BY t.id DESC LIMIT 20000`,

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Check, History, Paperclip, X } from 'lucide-react';
-import { useApproveOutpass, useOutpass, useRejectOutpass } from '../../api/hooks';
+import { useApproveOutpass, useOutpass, useRejectOutpass, useUserHistory } from '../../api/hooks';
+import { DailyBadge, DailyPassControls, ScheduleSummary } from '../../components/DailyPass';
 import { getErrorMessage } from '../../api/client';
 import { Button, Card, Field, KeyValue, LinkButton, PageHeader, Textarea } from '../../components/ui';
 import { ErrorState } from '../../components/States';
@@ -17,6 +18,23 @@ import { assetUrl, CAMPUS_CENTER } from '../../lib/config';
 import { humanize } from '../../lib/constants';
 import { formatMinutes } from '../../lib/format';
 import { distanceMeters } from '../../lib/geo';
+
+/** The student's late-return record, shown when reviewing a daily pass. */
+function StudentLateHistory({ studentId }) {
+  const h = useUserHistory(studentId);
+  if (h.isPending || h.isError || !h.data?.stats) return null;
+  const s = h.data.stats;
+  return (
+    <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+      Past one-time trips: {s.completed} completed, <span className={s.late ? 'font-semibold text-red-700' : ''}>{s.late} late</span>
+      {s.completed ? ` (${Math.round(s.late_rate * 100)}%)` : ''}
+      {s.avg_delay_min ? ` · avg delay ${s.avg_delay_min} min` : ''} ·{' '}
+      <Link to={`/staff/students/${studentId}`} className="font-medium text-indigo-700 hover:underline">
+        full history
+      </Link>
+    </p>
+  );
+}
 
 export default function StaffRequestDetail() {
   const { id } = useParams();
@@ -110,6 +128,13 @@ export default function StaffRequestDetail() {
         </Card>
       )}
 
+      {o.pass_type === 'DAILY' && (
+        <SectionCard title={<span className="flex items-center gap-2">Daily pass <DailyBadge /></span>} actions={<DailyPassControls outpass={o} staff />}>
+          <ScheduleSummary schedule={o.schedule} />
+          <StudentLateHistory studentId={o.student_id} />
+        </SectionCard>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <SectionCard title="Request">
@@ -121,13 +146,17 @@ export default function StaffRequestDetail() {
                 <DestinationLine item={o} />
                 {distKm != null && <span className="text-xs text-slate-500">≈ {distKm.toFixed(1)} km from campus centre</span>}
               </KeyValue>
-              <KeyValue label="Departure">
-                <DateTime value={o.depart_at} />
-              </KeyValue>
-              <KeyValue label="Expected return">
-                <DateTime value={o.expected_return_at} />
-              </KeyValue>
-              <KeyValue label="Duration">{formatMinutes(durationMin)}</KeyValue>
+              {o.pass_type !== 'DAILY' && (
+                <>
+                  <KeyValue label="Departure">
+                    <DateTime value={o.depart_at} />
+                  </KeyValue>
+                  <KeyValue label="Expected return">
+                    <DateTime value={o.expected_return_at} />
+                  </KeyValue>
+                  <KeyValue label="Duration">{formatMinutes(durationMin)}</KeyValue>
+                </>
+              )}
               <KeyValue label="Submitted">
                 <DateTime value={o.created_at} />
               </KeyValue>

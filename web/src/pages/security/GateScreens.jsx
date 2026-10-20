@@ -4,6 +4,7 @@ import { Avatar, Button, Field, Textarea } from '../../components/ui';
 import { DateTime } from '../../components/DateTime';
 import { StatusBadge } from '../../components/Badges';
 import { humanize } from '../../lib/constants';
+import { formatTime } from '../../lib/format';
 
 const QR_ERROR_TITLES = {
   QR_INVALID: 'Invalid QR code',
@@ -13,16 +14,21 @@ const QR_ERROR_TITLES = {
   PASS_NOT_APPROVED: 'Outpass not approved',
   OUTSIDE_TIME_WINDOW: 'Outside permitted time window',
   TRIP_CLOSED: 'Trip already closed',
+  PASS_PAUSED: 'Daily pass paused',
+  PASS_REVOKED: 'Daily pass revoked',
+  PASS_EXPIRED: 'Daily pass ended',
+  NOT_SCHEDULED_TODAY: 'Not scheduled today',
   NOT_FOUND: 'Not found',
   VALIDATION_ERROR: 'Invalid input',
 };
 
 /** Big confirm screen after a successful verify. */
 export function GateVerifyScreen({ result, onConfirm, onCancel, confirming, note, onNoteChange, showNote = false }) {
-  const { action, student, outpass, trip } = result;
+  const { action, student, outpass, trip, daily } = result;
   const isExit = action === 'EXIT';
   const Icon = isExit ? DoorOpen : DoorClosed;
-  const info = outpass || trip || {};
+  // Daily pass: the return time that matters is today's (the trip's window), not the pass's last day.
+  const info = daily ? { ...(outpass || {}), expected_return_at: trip?.expected_return_at } : outpass || trip || {};
   const late = !isExit && info.expected_return_at && new Date(info.expected_return_at) < new Date();
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
@@ -37,6 +43,11 @@ export function GateVerifyScreen({ result, onConfirm, onCancel, confirming, note
           <p className="text-lg font-semibold text-slate-600">{student?.roll_no}</p>
           <p className="text-sm text-slate-500">{[student?.hostel, student?.department].filter(Boolean).join(' · ')}</p>
         </div>
+        {daily && (
+          <p className="w-full max-w-md rounded-xl bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-800">
+            Daily pass · Day {daily.day} of {daily.total} · today {formatTime(daily.window_start)}–{formatTime(daily.window_end)}
+          </p>
+        )}
         <dl className="grid w-full max-w-md gap-3 rounded-xl bg-slate-50 p-4 text-left text-sm sm:grid-cols-2">
           <div className="sm:col-span-2">
             <dt className="text-xs font-medium uppercase text-slate-500">Reason</dt>
